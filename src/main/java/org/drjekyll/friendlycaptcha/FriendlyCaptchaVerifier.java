@@ -17,10 +17,14 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
@@ -85,8 +89,31 @@ public class FriendlyCaptchaVerifier {
   @Nullable
   private String sitekey;
 
+  /**
+   * The hostname or IP address of an optional HTTP proxy. {@code proxyPort} must be configured as
+   * well
+   */
   @Nullable
-  private HttpHost proxy;
+  private String proxyHost;
+
+  /**
+   * The port of an HTTP proxy. {@code proxyHost} must be configured as well.
+   */
+  private int proxyPort;
+
+  /**
+   * If the HTTP proxy requires a user name for basic authentication, it can be configured here.
+   * Proxy host, port and password must also be set.
+   */
+  @Nullable
+  private String proxyUserName;
+
+  /**
+   * The corresponding password for the basic auth proxy user. The proxy host, port and user name
+   * must be set as well.
+   */
+  @Nullable
+  private String proxyPassword;
 
   public boolean verify(@Nonnull String solution) {
     assertNotEmpty(solution, "Solution must not be null or empty");
@@ -166,8 +193,16 @@ public class FriendlyCaptchaVerifier {
     }
     HttpClientBuilder httpClientBuilder = HttpClientBuilder.create().setUserAgent(
       "FriendlyCaptchaJavaClient").setDefaultRequestConfig(requestConfigBuilder.build());
-    if (proxy != null) {
-      httpClientBuilder.setProxy(proxy);
+    if (!isEmpty(proxyHost) && proxyPort > 0) {
+      httpClientBuilder.setProxy(new HttpHost(proxyHost, proxyPort));
+      if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
+        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        AuthScope authScope = new AuthScope(proxyHost, proxyPort);
+        credentialsProvider.setCredentials(authScope,
+          new UsernamePasswordCredentials(proxyUserName, proxyPassword)
+        );
+        httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+      }
     }
     return httpClientBuilder;
   }
