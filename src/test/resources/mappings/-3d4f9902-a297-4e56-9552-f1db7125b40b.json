@@ -1,0 +1,41 @@
+{
+  "id" : "3d4f9902-a297-4e56-9552-f1db7125b40b",
+  "name" : "",
+  "request" : {
+    "url" : "/",
+    "method" : "POST",
+    "headers" : {
+      "Content-Type" : {
+        "equalTo" : "application/x-www-form-urlencoded"
+      },
+      "User-Agent" : {
+        "equalTo" : "FriendlyCaptchaJavaClient"
+      },
+      "Accept" : {
+        "equalTo" : "application/json"
+      }
+    },
+    "bodyPatterns" : [ {
+      "equalTo" : "solution=test&secret=B191X90HRE6PA37HDSUIMXS6L46HQGL1A5PGJBFQ12VCV52GTI4HJA2CGI",
+      "caseInsensitive" : false
+    } ]
+  },
+  "response" : {
+    "status" : 200,
+    "bodyFileName" : "-3d4f9902-a297-4e56-9552-f1db7125b40b.json",
+    "headers" : {
+      "Date" : "Tue, 12 Apr 2022 14:41:21 GMT",
+      "Content-Type" : "application/json",
+      "Expect-CT" : "max-age=604800, report-uri=\"https://report-uri.cloudflare.com/cdn-cgi/beacon/expect-ct\"",
+      "Report-To" : "{\"endpoints\":[{\"url\":\"https:\\/\\/a.nel.cloudflare.com\\/report\\/v3?s=soZ1dvg1bGJwV7vHK98tJd4%2Fr1POCNgtBfEtQUsQdUX90TRqWA7AJE%2FJvaEDte5RCoFfO6PAhZDbkcG8v52YQuqJEw0dkocoqINnpxPb5sb2%2F8H8tdtaZE1Ms8Qmrh9FZ1PO70%2FKk39V%2Fw%3D%3D\"}],\"group\":\"cf-nel\",\"max_age\":604800}",
+      "NEL" : "{\"success_fraction\":0,\"report_to\":\"cf-nel\",\"max_age\":604800}",
+      "Vary" : "Accept-Encoding",
+      "Server" : "cloudflare",
+      "CF-RAY" : "6facb8ef2969d8c1-AMS",
+      "alt-svc" : "h3=\":443\"; ma=86400, h3-29=\":443\"; ma=86400"
+    }
+  },
+  "uuid" : "3d4f9902-a297-4e56-9552-f1db7125b40b",
+  "persistent" : true,
+  "insertionIndex" : 1
+}
