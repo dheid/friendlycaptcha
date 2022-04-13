@@ -13,14 +13,14 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
 </dependency>
 ```
 
 or Gradle:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:1.1.0'
+implementation 'org.drjekyll:friendlycaptcha:1.2.0'
 ```
 
 Run your build tool and you can include the verifier as follows:
