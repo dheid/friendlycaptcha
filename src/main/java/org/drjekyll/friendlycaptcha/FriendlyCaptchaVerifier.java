@@ -115,6 +115,10 @@ public class FriendlyCaptchaVerifier {
   @Nullable
   private String proxyPassword;
 
+  /**
+   * Logs INFO messages with detailed information
+   */
+  private boolean verbose;
   public boolean verify(@Nonnull String solution) {
     assertNotEmpty(solution, "Solution must not be null or empty");
     assertNotEmpty(apiKey, "Secret must not be null or empty");
@@ -124,12 +128,17 @@ public class FriendlyCaptchaVerifier {
     HttpClientBuilder httpClientBuilder = createHttpClientBuilder();
     HttpPost request = createRequest(entity);
 
+    if (verbose) {
+      log.info("Verifying friendly captcha solution using endpoint {}", verificationEndpoint);
+    }
     try (
       CloseableHttpClient httpClient = httpClientBuilder.build();
       CloseableHttpResponse response = httpClient.execute(request)
     ) {
       VerificationResponse verificationResponse = readVerificationResponse(response);
-
+      if (verbose) {
+        log.info("Received response {} with status code {}", verificationResponse, response.getStatusLine().getStatusCode());
+      }
       if (response.getStatusLine().getStatusCode() == 200) {
         return verificationResponse.isSuccess();
       }

@@ -71,6 +71,7 @@ The Friendly Captcha Verifier currently supports the following builder methods:
   configured with this method. Proxy host, port and password must also be set.
 * `.proxyPassword(...)` The corresponding password for the basic auth proxy user. The proxy host,
   port and user name must be set as well.
+* `.verbose(...)` logs detailed information using INFO level
 
 ## Development
 
@@ -93,6 +94,10 @@ the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
 ## Release Notes
+
+### 1.2.0
+
+* Add verbose logging
 
 ### 1.1.0
 
