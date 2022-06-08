@@ -13,14 +13,14 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>1.2.0</version>
+  <version>1.2.1</version>
 </dependency>
 ```
 
 or Gradle:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:1.2.0'
+implementation 'org.drjekyll:friendlycaptcha:1.2.1'
 ```
 
 Run your build tool and you can include the verifier as follows:
@@ -94,6 +94,10 @@ the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
 ## Release Notes
+
+### 1.2.1
+
+* Update dependencies
 
 ### 1.2.0
 
