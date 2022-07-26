@@ -1,10 +1,10 @@
-# Friendly Captcha Verification API Client
+# :robot: Friendly Captcha Verification API Client
 
 This client library allows JVM-based applications to
 verify [Friendly Captcha](https://www.friendlycaptcha.com) puzzle solutions. It wraps the necessary
 call and interprets the result.
 
-## Usage
+## :wrench: Usage
 
 Include the dependency using Maven
 
@@ -50,7 +50,7 @@ public class FriendlyCaptchaExample {
 }
 ```
 
-## Parameters
+## :gear: Verifier Parameters
 
 The Friendly Captcha Verifier currently supports the following builder methods:
 
@@ -73,27 +73,27 @@ The Friendly Captcha Verifier currently supports the following builder methods:
   port and user name must be set as well.
 * `.verbose(...)` logs detailed information using INFO level
 
-## Development
+## :factory_worker: Development
 
 To build and locally install the library and run the tests, just call
 
     mvn install
 
-## Contributing
+## :handshake: Contributing
 
 Please read [the contribution document](CONTRIBUTING.md) for details on our code of conduct, and the
 process for submitting pull requests to us.
 
-## Versioning
+## :notebook: Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see
 the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 
-## License
+## :scroll: License
 
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
-## Release Notes
+## :loudspeaker: Release Notes
 
 ### 1.2.1
 
