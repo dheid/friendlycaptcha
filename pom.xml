@@ -41,8 +41,8 @@
 
 
   <scm>
-    <connection>scm:git:git@github.com:dheid/friendlycaptcha.git</connection>
-    <developerConnection>scm:git:git@github.com:dheid/friendlycaptcha.git</developerConnection>
+    <connection>scm:git:https://github.com/dheid/friendlycaptcha.git</connection>
+    <developerConnection>scm:git:https://github.com/dheid/friendlycaptcha.git</developerConnection>
     <url>https://github.com/dheid/friendlycaptcha</url>
     <tag>HEAD</tag>
   </scm>

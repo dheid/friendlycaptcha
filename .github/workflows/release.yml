@@ -1,13 +1,14 @@
 name: Release with Maven
 on:
-  workflow_dispatch: 
+  release:
+    types:
+      - created
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Set up JDK 8
-      uses: actions/setup-java@v3
+    - uses: actions/setup-java@v3
       with:
         java-version: '8'
         distribution: 'temurin'
@@ -17,12 +18,10 @@ jobs:
         server-password: OSSRH_PASSWORD
         gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
         gpg-passphrase: GPG_PASSPHRASE
-    - name: Configure Git user
-      run: |
-        git config user.email "mail@daniel-heid.de"
-        git config user.name "Daniel Heid"
-    - name: Release with Maven
-      run: mvn -B release:prepare release:perform
+    - run: |
+        git config user.email "github@daniel-heid.de"
+        git config user.name "GitHub Actions"
+    - run: mvn -B release:prepare release:perform
       env:
         OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
         OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
