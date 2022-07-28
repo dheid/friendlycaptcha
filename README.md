@@ -1,5 +1,7 @@
 # :robot: Friendly Captcha Verification API Client
 
+[![Maven Central](https://img.shields.io/maven-central/v/org.drjekyll/friendlycaptcha.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22org.drjekyll%22%20AND%20a:%22friendlycaptcha%22)
+
 This client library allows JVM-based applications to
 verify [Friendly Captcha](https://www.friendlycaptcha.com) puzzle solutions. It wraps the necessary
 call and interprets the result.
@@ -17,10 +19,16 @@ Include the dependency using Maven
 </dependency>
 ```
 
-or Gradle:
+or Gradle with Groovy DSL:
 
 ```groovy
 implementation 'org.drjekyll:friendlycaptcha:1.2.2'
+```
+
+or Gradle with Kotlin DSL:
+
+```kotlin
+implementation("org.drjekyll:friendlycaptcha:1.2.2")
 ```
 
 Run your build tool and you can include the verifier as follows:
