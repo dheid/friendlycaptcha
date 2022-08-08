@@ -1,33 +1,26 @@
 package org.drjekyll.friendlycaptcha;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpHost;
-import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.message.BasicNameValuePair;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.Authenticator;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.ProtocolException;
+import java.net.Proxy;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Collection;
 
 /**
  * Verifies a Friendly Captcha Solution by making an HTTP POST request to the Friendly Captcha API
@@ -119,48 +112,124 @@ public class FriendlyCaptchaVerifier {
    * Logs INFO messages with detailed information
    */
   private boolean verbose;
+
   public boolean verify(@Nonnull String solution) {
     assertNotEmpty(solution, "Solution must not be null or empty");
-    assertNotEmpty(apiKey, "Secret must not be null or empty");
+    assertNotEmpty(apiKey, "API key must not be null or empty");
     assertVerificationEndpointScheme();
 
-    HttpEntity entity = createEntity(solution);
-    HttpClientBuilder httpClientBuilder = createHttpClientBuilder();
-    HttpPost request = createRequest(entity);
+    byte[] entity = createEntity(solution);
+    HttpURLConnection connection = connect(entity.length);
 
     if (verbose) {
       log.info("Verifying friendly captcha solution using endpoint {}", verificationEndpoint);
     }
-    try (
-      CloseableHttpClient httpClient = httpClientBuilder.build();
-      CloseableHttpResponse response = httpClient.execute(request)
-    ) {
-      VerificationResponse verificationResponse = readVerificationResponse(response);
-      if (verbose) {
-        log.info("Received response {} with status code {}", verificationResponse, response.getStatusLine().getStatusCode());
-      }
-      if (response.getStatusLine().getStatusCode() == 200) {
-        return verificationResponse.isSuccess();
-      }
 
-      Collection<VerificationError> errors = verificationResponse.getErrors();
-
-      if (errors == null || errors.isEmpty()) {
-        throw new FriendlyCaptchaException("Verification API did not return any error");
-      }
-
-      log.warn("Received response with errors from Verification API: {}", verificationResponse);
-
-      VerificationError verificationError = errors.iterator().next();
-      String message = isEmpty(verificationResponse.getDetails())
-        ? verificationError.getDescription()
-        : verificationResponse.getDetails();
-      throw new FriendlyCaptchaException(message);
-
+    try {
+      connection.connect();
     } catch (IOException e) {
-      throw new FriendlyCaptchaException("Could not check solution", e);
+      connection.disconnect();
+      throw new FriendlyCaptchaException("Could not connect", e);
     }
 
+    writeEntity(entity, connection);
+
+    try (InputStream inputStream = getInputStream(connection)) {
+      VerificationResponse verificationResponse = readVerificationResponse(inputStream);
+      return processResponse(connection, verificationResponse);
+    } catch (IOException e) {
+      throw new FriendlyCaptchaException("Could not check solution", e);
+    } finally {
+      connection.disconnect();
+    }
+
+  }
+
+  private boolean processResponse(HttpURLConnection connection, VerificationResponse verificationResponse) throws IOException {
+    if (verbose) {
+      log.info("Received response {} with status code {}", verificationResponse, connection.getResponseCode());
+    }
+    if (connection.getResponseCode() == 200) {
+      return verificationResponse.isSuccess();
+    }
+
+    Collection<VerificationError> errors = verificationResponse.getErrors();
+
+    if (errors == null || errors.isEmpty()) {
+      throw new FriendlyCaptchaException("Verification API did not return any error");
+    }
+
+    log.warn("Received response with errors from Verification API: {}", verificationResponse);
+
+    VerificationError verificationError = errors.iterator().next();
+    String message = isEmpty(verificationResponse.getDetails())
+      ? verificationError.getDescription()
+      : verificationResponse.getDetails();
+    throw new FriendlyCaptchaException(message);
+  }
+
+  @Nonnull
+  private static InputStream getInputStream(@NonNull HttpURLConnection connection) {
+    try {
+      if (connection.getResponseCode() == 200) {
+        return connection.getInputStream();
+      }
+      return connection.getErrorStream();
+    } catch (IOException exception) {
+      connection.disconnect();
+      throw new FriendlyCaptchaException("Could not read response", exception);
+    }
+  }
+
+  private static void writeEntity(@NonNull byte[] entity, @NonNull HttpURLConnection connection) {
+    try (OutputStream outputStream = connection.getOutputStream()) {
+      outputStream.write(entity);
+      outputStream.flush();
+    } catch (IOException e) {
+      connection.disconnect();
+      throw new FriendlyCaptchaException("Could not transfer solution", e);
+    }
+  }
+
+  private HttpURLConnection connect(int contentLength) {
+    HttpURLConnection connection;
+    try {
+      if (isEmpty(proxyHost) || proxyPort <= 0) {
+        connection = (HttpURLConnection) verificationEndpoint.toURL().openConnection();
+      } else {
+        InetSocketAddress proxyAddress = new InetSocketAddress(proxyHost, proxyPort);
+        Proxy proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
+        if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
+          Authenticator.setDefault(new ProxyAuthenticator(proxyUserName, proxyPassword));
+        }
+        connection = (HttpURLConnection) verificationEndpoint.toURL().openConnection(proxy);
+      }
+    } catch (IOException e) {
+      throw new FriendlyCaptchaException("Could not open connection", e);
+    }
+
+    try {
+      connection.setRequestMethod("POST");
+    } catch (ProtocolException e) {
+      throw new FriendlyCaptchaException("Could not set request method", e);
+    }
+    connection.setDoInput(true);
+    connection.setDoOutput(true);
+    connection.setUseCaches(false);
+    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+    connection.setRequestProperty("Accept", "application/json");
+    connection.setRequestProperty("User-Agent", "FriendlyCaptchaJavaClient");
+    connection.setRequestProperty("charset", "utf-8");
+    connection.setRequestProperty("Content-Length", Integer.toString(contentLength));
+    connection.setRequestProperty("Connection", "close");
+
+    if (connectTimeout != null) {
+      connection.setConnectTimeout((int) connectTimeout.toMillis());
+    }
+    if (socketTimeout != null) {
+      connection.setReadTimeout((int) socketTimeout.toMillis());
+    }
+    return connection;
   }
 
   private static void assertNotEmpty(@Nonnull String str, @Nullable String message) {
@@ -177,56 +246,22 @@ public class FriendlyCaptchaVerifier {
   }
 
   @Nonnull
-  private HttpEntity createEntity(@Nonnull String solution) {
+  private byte[] createEntity(@Nonnull String solution) {
     assertNotEmpty(solution, "Solution must not be null or empty");
-    List<NameValuePair> params = new ArrayList<>(3);
-    params.add(new BasicNameValuePair("solution", solution));
-    params.add(new BasicNameValuePair("secret", apiKey));
-    if (!isEmpty(sitekey)) {
-      params.add(new BasicNameValuePair("sitekey", sitekey));
-    }
     try {
-      return new UrlEncodedFormEntity(params);
-    } catch (UnsupportedEncodingException e) {
-      throw new FriendlyCaptchaException("Could not create form entity", e);
-    }
-  }
-
-  private HttpClientBuilder createHttpClientBuilder() {
-    RequestConfig.Builder requestConfigBuilder = RequestConfig.custom();
-    if (connectTimeout != null) {
-      requestConfigBuilder.setConnectTimeout((int) connectTimeout.toMillis());
-    }
-    if (socketTimeout != null) {
-      requestConfigBuilder.setSocketTimeout((int) socketTimeout.toMillis());
-    }
-    HttpClientBuilder httpClientBuilder = HttpClientBuilder.create().setUserAgent(
-      "FriendlyCaptchaJavaClient").setDefaultRequestConfig(requestConfigBuilder.build());
-    if (!isEmpty(proxyHost) && proxyPort > 0) {
-      httpClientBuilder.setProxy(new HttpHost(proxyHost, proxyPort));
-      if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
-        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        AuthScope authScope = new AuthScope(proxyHost, proxyPort);
-        credentialsProvider.setCredentials(authScope,
-          new UsernamePasswordCredentials(proxyUserName, proxyPassword)
-        );
-        httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);
+      String entity = "solution=" + URLEncoder.encode(solution, "UTF-8") + "&secret=" + URLEncoder.encode(apiKey, "UTF-8");
+      if (!isEmpty(sitekey)) {
+        entity += "&sitekey=" + sitekey;
       }
+      return entity.getBytes(StandardCharsets.UTF_8);
+    } catch (UnsupportedEncodingException e) {
+      throw new FriendlyCaptchaException("Could not encode payload", e);
     }
-    return httpClientBuilder;
   }
 
-  private HttpPost createRequest(HttpEntity entity) {
-    HttpPost request = new HttpPost(verificationEndpoint);
-    request.setEntity(entity);
-    request.addHeader("Accept", "application/json");
-    request.addHeader("Content-Type", "application/x-www-form-urlencoded");
-    return request;
-  }
-
-  private VerificationResponse readVerificationResponse(@Nonnull HttpResponse response) {
+  private VerificationResponse readVerificationResponse(@Nonnull InputStream inputStream) {
     try {
-      return objectMapper.readValue(response.getEntity().getContent(), VerificationResponse.class);
+      return objectMapper.readValue(inputStream, VerificationResponse.class);
     } catch (Exception e) {
       throw new FriendlyCaptchaException("Could not read response from verification API", e);
     }

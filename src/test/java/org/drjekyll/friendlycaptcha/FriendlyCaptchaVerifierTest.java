@@ -62,7 +62,7 @@ class FriendlyCaptchaVerifierTest {
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
       .isInstanceOf(IllegalArgumentException.class)
-      .hasMessage("Secret must not be null or empty");
+      .hasMessage("API key must not be null or empty");
 
   }
 

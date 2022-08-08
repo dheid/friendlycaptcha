@@ -16,20 +16,20 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>1.2.2</version>
+  <version>2.0.0</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:1.2.2'
+implementation 'org.drjekyll:friendlycaptcha:2.0.0'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:1.2.2")
+implementation("org.drjekyll:friendlycaptcha:2.0.0")
 ```
 
 Run your build tool and you can include the verifier as follows:
@@ -103,6 +103,10 @@ the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
 ## :loudspeaker: Release Notes
+
+### 2.0.0
+
+Got rid of HTTP client dependency. Apache HTTP Client is no longer needed.
 
 ### 1.2.1 / 1.2.2
 
