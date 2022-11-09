@@ -17,20 +17,20 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>2.0.3</version>
+  <version>2.0.5</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:2.0.3'
+implementation 'org.drjekyll:friendlycaptcha:2.0.5'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:2.0.3")
+implementation("org.drjekyll:friendlycaptcha:2.0.5")
 ```
 
 Run your build tool and you can include the verifier as follows:
@@ -105,7 +105,7 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 
 ## :loudspeaker: Release Notes
 
-### 2.0.2 and 2.0.3
+### 2.0.2 -- 2.0.5
 
 Dependency updates
 
