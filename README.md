@@ -4,9 +4,12 @@
 [![Java CI with Maven](https://github.com/dheid/friendlycaptcha/actions/workflows/build.yml/badge.svg)](https://github.com/dheid/friendlycaptcha/actions/workflows/build.yml)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W3EER56)
 
-This client library allows JVM-based applications to
-verify [Friendly Captcha](https://www.friendlycaptcha.com) puzzle solutions. It wraps the necessary
+This client library allows JVM-based applications to verify [Friendly Captcha](https://www.friendlycaptcha.com) puzzle solutions. It wraps the necessary
 call and interprets the result.
+
+* Easy to use (see example below)
+* Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
+* Only two dependencies: Jackson and SLF4J
 
 ## :wrench: Usage
 
@@ -17,20 +20,20 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>2.0.7</version>
+  <version>2.0.8</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:2.0.7'
+implementation 'org.drjekyll:friendlycaptcha:2.0.8'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:2.0.7")
+implementation("org.drjekyll:friendlycaptcha:2.0.8")
 ```
 
 Run your build tool and you can include the verifier as follows:
@@ -59,6 +62,29 @@ public class FriendlyCaptchaExample {
 
 }
 ```
+
+Or Kotlin:
+
+```kotlin
+class FriendlyCaptchaExample {
+  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifier
+    .builder()
+    .apiKey("YOUR_API_KEY")
+    .sitekey("AN_OPTIONAL_SITE_KEY")
+    .build()
+
+  fun checkSolution(solution: String?) {
+    val success: Boolean = friendlyCaptchaVerifier.verify(solution)
+    if (success) {
+      // continue
+    } else {
+      // stop processing
+    }
+  }
+}
+```
+
+On a non-successful response, `verify` throws a `FriendlyCaptchaException` containing either the response details or a description of the error.
 
 ## :gear: Verifier Parameters
 
@@ -105,7 +131,7 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 
 ## :loudspeaker: Release Notes
 
-### 2.0.2 -- 2.0.7
+### 2.0.2 -- 2.0.8
 
 Dependency updates
 
