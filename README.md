@@ -20,20 +20,20 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>2.0.9</version>
+  <version>2.0.11</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:2.0.9'
+implementation 'org.drjekyll:friendlycaptcha:2.0.11'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:2.0.9")
+implementation("org.drjekyll:friendlycaptcha:2.0.11")
 ```
 
 Run your build tool and you can include the verifier as follows:
@@ -97,7 +97,7 @@ The Friendly Captcha Verifier currently supports the following builder methods:
   is: https://api.friendlycaptcha.com/api/v1/siteverify
 * `.connectTimeout(...)` allows you to change the default connection timeout of 10 seconds. 0 is
   interpreted as infinite, null uses the system default
-* `.socketTimeout(...)` allows you to change the default socket timeout of 10 seconds. 0 is
+* `.socketTimeout(...)` allows you to change the default socket timeout of 30 seconds. 0 is
   interpreted as infinite, null uses the system default
 * `.sitekey(...)` is an optional sitekey that you want to make sure the puzzle was generated from.
 * `.proxyHost(...)` The hostname or IP address of an optional HTTP proxy. `proxyPort` must be
@@ -130,6 +130,16 @@ the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
 ## :loudspeaker: Release Notes
+
+### 2.0.12
+
+* Fixed sitekey not being URL-encoded in the POST body
+* Fixed potential NullPointerException when the API returns an error response without a body
+* Removed ineffective standalone `charset` HTTP header
+
+### 2.0.10 / 2.0.11
+
+Dependency updates
 
 ### 2.0.2 -- 2.0.9
 

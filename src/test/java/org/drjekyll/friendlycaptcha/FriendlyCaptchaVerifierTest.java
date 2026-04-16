@@ -1,5 +1,9 @@
 package org.drjekyll.friendlycaptcha;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -90,6 +94,44 @@ class FriendlyCaptchaVerifierTest {
 
   private void thenSolutionIsInvalid() {
     assertThat(valid).isFalse();
+  }
+
+  @Test
+  void sitekeyWithSpecialCharactersIsUrlEncoded() {
+
+    stubFor(post("/")
+      .withHeader("Content-Type", equalTo("application/x-www-form-urlencoded"))
+      .withRequestBody(equalTo(
+        "solution=test&secret=" + VALID_API_KEY + "&sitekey=NQT%2BVT3%2FJKLX"
+      ))
+      .willReturn(aResponse()
+        .withStatus(200)
+        .withHeader("Content-Type", "application/json")
+        .withBody("{\"success\":true}")));
+
+    friendlyCaptchaVerifier = frcSolutionValidatorBuilder
+      .apiKey(VALID_API_KEY)
+      .sitekey("NQT+VT3/JKLX")
+      .build();
+
+    whenValidatesSolution("test");
+
+    assertThat(valid).isTrue();
+
+  }
+
+  @Test
+  void handlesErrorResponseWithoutBody() {
+
+    stubFor(post("/")
+      .willReturn(aResponse()
+        .withStatus(500)));
+
+    friendlyCaptchaVerifier = frcSolutionValidatorBuilder.apiKey(VALID_API_KEY).build();
+
+    assertThatThrownBy(() -> whenValidatesSolution("test"))
+      .isInstanceOf(FriendlyCaptchaException.class);
+
   }
 
   private void whenValidatesSolution(String solution) {

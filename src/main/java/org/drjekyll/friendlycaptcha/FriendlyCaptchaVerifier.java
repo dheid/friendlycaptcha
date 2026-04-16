@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -174,7 +175,8 @@ public class FriendlyCaptchaVerifier {
       if (connection.getResponseCode() == 200) {
         return connection.getInputStream();
       }
-      return connection.getErrorStream();
+      InputStream errorStream = connection.getErrorStream();
+      return errorStream != null ? errorStream : new ByteArrayInputStream(new byte[0]);
     } catch (IOException exception) {
       connection.disconnect();
       throw new FriendlyCaptchaException("Could not read response", exception);
@@ -219,7 +221,6 @@ public class FriendlyCaptchaVerifier {
     connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
     connection.setRequestProperty("Accept", "application/json");
     connection.setRequestProperty("User-Agent", "FriendlyCaptchaJavaClient");
-    connection.setRequestProperty("charset", "utf-8");
     connection.setRequestProperty("Content-Length", Integer.toString(contentLength));
     connection.setRequestProperty("Connection", "close");
 
@@ -247,11 +248,10 @@ public class FriendlyCaptchaVerifier {
 
   @Nonnull
   private byte[] createEntity(@Nonnull String solution) {
-    assertNotEmpty(solution, "Solution must not be null or empty");
     try {
       String entity = "solution=" + URLEncoder.encode(solution, "UTF-8") + "&secret=" + URLEncoder.encode(apiKey, "UTF-8");
       if (!isEmpty(sitekey)) {
-        entity += "&sitekey=" + sitekey;
+        entity += "&sitekey=" + URLEncoder.encode(sitekey, "UTF-8");
       }
       return entity.getBytes(StandardCharsets.UTF_8);
     } catch (UnsupportedEncodingException e) {
