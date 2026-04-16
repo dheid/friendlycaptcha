@@ -62,13 +62,13 @@
   </distributionManagement>
 
   <properties>
+    <delombok.output>${project.build.outputDirectory}/delombok</delombok.output>
+    <lombok.version>1.18.44</lombok.version>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.resourceEncoding>UTF-8</project.build.resourceEncoding>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <slf4j.version>2.0.17</slf4j.version>
-    <delombok.output>${project.build.outputDirectory}/delombok</delombok.output>
-    <lombok.version>1.18.44</lombok.version>
   </properties>
 
   <dependencies>
@@ -266,27 +266,22 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.projectlombok</groupId>
-        <artifactId>lombok-maven-plugin</artifactId>
-        <version>1.18.20.0</version>
-        <configuration>
-          <sourceDirectory>src/main/java</sourceDirectory>
-          <outputDirectory>${delombok.output}</outputDirectory>
-          <addOutputDirectory>false</addOutputDirectory>
-        </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-          </dependency>
-        </dependencies>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>3.6.2</version>
         <executions>
           <execution>
+            <id>enforce-maven</id>
             <goals>
-              <goal>delombok</goal>
+              <goal>enforce</goal>
             </goals>
-            <phase>generate-sources</phase>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>3.2.5</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -304,26 +299,6 @@
             <goals>
               <goal>jar</goal>
             </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-enforcer-plugin</artifactId>
-        <version>3.6.2</version>
-        <executions>
-          <execution>
-            <id>enforce-maven</id>
-            <goals>
-              <goal>enforce</goal>
-            </goals>
-            <configuration>
-              <rules>
-                <requireMavenVersion>
-                  <version>3.2.5</version>
-                </requireMavenVersion>
-              </rules>
-            </configuration>
           </execution>
         </executions>
       </plugin>
@@ -387,6 +362,31 @@
                 </rule>
               </rules>
             </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok-maven-plugin</artifactId>
+        <version>1.18.20.0</version>
+        <configuration>
+          <sourceDirectory>src/main/java</sourceDirectory>
+          <outputDirectory>${delombok.output}</outputDirectory>
+          <addOutputDirectory>false</addOutputDirectory>
+        </configuration>
+        <dependencies>
+          <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <goals>
+              <goal>delombok</goal>
+            </goals>
+            <phase>generate-sources</phase>
           </execution>
         </executions>
       </plugin>

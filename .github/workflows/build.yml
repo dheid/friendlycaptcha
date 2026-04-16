@@ -18,7 +18,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
         cache: maven
-    - run: mvn -B verify javadoc:javadoc
+    - run: mvn -B verify
     - name: Publish test report
       uses: dorny/test-reporter@v2
       if: always()
@@ -31,7 +31,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       run: |
         mkdir -p target/site/pages/apidocs target/site/pages/coverage
-        cp -r target/site/reports/apidocs/. target/site/pages/apidocs/
+        cp -r target/reports/apidocs/. target/site/pages/apidocs/
         cp -r target/site/jacoco/. target/site/pages/coverage/
         cat > target/site/pages/index.html <<'EOF'
         <!DOCTYPE html>
