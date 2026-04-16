@@ -1,16 +1,14 @@
 package org.drjekyll.friendlycaptcha;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.Authenticator;
-import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.net.ProtocolException;
-import java.net.Proxy;
+import java.net.ProxySelector;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,11 +50,9 @@ public abstract class FriendlyCaptchaVerifier {
   @lombok.Builder.Default private Duration connectTimeout = Duration.ofSeconds(10L);
 
   /**
-   * The socket timeout ({@code SO_TIMEOUT}), which is the timeout for waiting for data or, put
-   * differently, a maximum period of inactivity between two consecutive data packets.
+   * The timeout for the entire request (connecting, sending, and receiving the response).
    *
-   * <p>A timeout value of zero is interpreted as an infinite timeout. A {@code null} value is
-   * interpreted as undefined (system default if applicable).
+   * <p>A {@code null} value means no request timeout is applied.
    *
    * <p>Default: 30 seconds
    */
@@ -117,28 +113,23 @@ public abstract class FriendlyCaptchaVerifier {
         verificationEndpoint != null ? verificationEndpoint : getDefaultEndpoint();
     assertVerificationEndpointScheme(effectiveEndpoint);
 
-    byte[] entity = buildRequestBody(solution);
-    HttpURLConnection connection = connect(entity.length, effectiveEndpoint);
-
     if (verbose) {
       log.info("Verifying friendly captcha solution using endpoint {}", effectiveEndpoint);
     }
 
+    byte[] body = buildRequestBody(solution);
+    HttpClient client = buildHttpClient();
+    HttpRequest request = buildHttpRequest(body, effectiveEndpoint);
+
     try {
-      connection.connect();
-    } catch (IOException e) {
-      connection.disconnect();
-      throw new FriendlyCaptchaException("Could not connect", e);
-    }
-
-    writeEntity(entity, connection);
-
-    try (InputStream inputStream = getInputStream(connection)) {
-      return processResponse(connection, inputStream);
+      HttpResponse<InputStream> response =
+          client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+      return processResponse(response.statusCode(), response.body());
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new FriendlyCaptchaException("Could not check solution", e);
     } catch (IOException e) {
       throw new FriendlyCaptchaException("Could not check solution", e);
-    } finally {
-      connection.disconnect();
     }
   }
 
@@ -148,17 +139,14 @@ public abstract class FriendlyCaptchaVerifier {
   /** Builds the URL-encoded POST body for the given captcha solution. */
   protected abstract byte[] buildRequestBody(String solution);
 
-  /**
-   * Sets any version-specific request headers on the connection (e.g. {@code X-API-Key} for v2).
-   */
-  protected abstract void configureVersionSpecificHeaders(HttpURLConnection connection);
+  /** Adds any version-specific request headers to the builder (e.g. {@code X-API-Key} for v2). */
+  protected abstract void addVersionSpecificHeaders(HttpRequest.Builder requestBuilder);
 
   /**
    * Parses the response body and returns {@code true} if the solution is valid, {@code false} if
    * rejected, or throws {@link FriendlyCaptchaException} on API errors.
    */
-  protected abstract boolean processResponse(HttpURLConnection connection, InputStream inputStream)
-      throws IOException;
+  protected abstract boolean processResponse(int statusCode, InputStream body) throws IOException;
 
   /**
    * Reads and deserialises the response body into the given class using the shared ObjectMapper.
@@ -175,70 +163,33 @@ public abstract class FriendlyCaptchaVerifier {
     return str == null || str.trim().isEmpty();
   }
 
-  private HttpURLConnection connect(int contentLength, @Nonnull URI endpoint) {
-    HttpURLConnection connection;
-    try {
-      if (isEmpty(proxyHost) || proxyPort <= 0) {
-        connection = (HttpURLConnection) endpoint.toURL().openConnection();
-      } else {
-        InetSocketAddress proxyAddress = new InetSocketAddress(proxyHost, proxyPort);
-        Proxy proxy = new Proxy(Proxy.Type.HTTP, proxyAddress);
-        if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
-          Authenticator.setDefault(new ProxyAuthenticator(proxyUserName, proxyPassword));
-        }
-        connection = (HttpURLConnection) endpoint.toURL().openConnection(proxy);
-      }
-    } catch (IOException e) {
-      throw new FriendlyCaptchaException("Could not open connection", e);
-    }
-
-    try {
-      connection.setRequestMethod("POST");
-    } catch (ProtocolException e) {
-      throw new FriendlyCaptchaException("Could not set request method", e);
-    }
-    connection.setDoInput(true);
-    connection.setDoOutput(true);
-    connection.setUseCaches(false);
-    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-    connection.setRequestProperty("Accept", "application/json");
-    connection.setRequestProperty("User-Agent", "FriendlyCaptchaJavaClient");
-    connection.setRequestProperty("Content-Length", Integer.toString(contentLength));
-    connection.setRequestProperty("Connection", "close");
-
-    configureVersionSpecificHeaders(connection);
-
+  private HttpClient buildHttpClient() {
+    HttpClient.Builder builder = HttpClient.newBuilder();
     if (connectTimeout != null) {
-      connection.setConnectTimeout((int) connectTimeout.toMillis());
+      builder.connectTimeout(connectTimeout);
     }
-    if (socketTimeout != null) {
-      connection.setReadTimeout((int) socketTimeout.toMillis());
-    }
-    return connection;
-  }
-
-  @Nonnull
-  private static InputStream getInputStream(@NonNull HttpURLConnection connection) {
-    try {
-      if (connection.getResponseCode() == 200) {
-        return connection.getInputStream();
+    if (!isEmpty(proxyHost) && proxyPort > 0) {
+      builder.proxy(ProxySelector.of(new InetSocketAddress(proxyHost, proxyPort)));
+      if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
+        builder.authenticator(new ProxyAuthenticator(proxyUserName, proxyPassword));
       }
-      InputStream errorStream = connection.getErrorStream();
-      return errorStream != null ? errorStream : new ByteArrayInputStream(new byte[0]);
-    } catch (IOException exception) {
-      connection.disconnect();
-      throw new FriendlyCaptchaException("Could not read response", exception);
     }
+    return builder.build();
   }
 
-  private static void writeEntity(@NonNull byte[] entity, @NonNull HttpURLConnection connection) {
-    try (OutputStream outputStream = connection.getOutputStream()) {
-      outputStream.write(entity);
-      outputStream.flush();
-    } catch (IOException e) {
-      connection.disconnect();
-      throw new FriendlyCaptchaException("Could not transfer solution", e);
+  private HttpRequest buildHttpRequest(byte[] body, URI endpoint) {
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder()
+            .uri(endpoint)
+            .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .header("Accept", "application/json")
+            .header("User-Agent", "FriendlyCaptchaJavaClient");
+    if (socketTimeout != null) {
+      builder.timeout(socketTimeout);
     }
+    addVersionSpecificHeaders(builder);
+    return builder.build();
   }
 
   private static void assertNotEmpty(@Nonnull String str, @Nullable String message) {

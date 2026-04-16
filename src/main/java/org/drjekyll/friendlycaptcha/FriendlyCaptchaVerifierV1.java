@@ -2,10 +2,9 @@ package org.drjekyll.friendlycaptcha;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import javax.annotation.Nonnull;
@@ -41,34 +40,29 @@ public class FriendlyCaptchaVerifierV1 extends FriendlyCaptchaVerifier {
 
   @Override
   protected byte[] buildRequestBody(@Nonnull String solution) {
-    try {
-      String entity =
-          "solution="
-              + URLEncoder.encode(solution, "UTF-8")
-              + "&secret="
-              + URLEncoder.encode(apiKey, "UTF-8");
-      if (!isEmpty(sitekey)) {
-        entity += "&sitekey=" + URLEncoder.encode(sitekey, "UTF-8");
-      }
-      return entity.getBytes(StandardCharsets.UTF_8);
-    } catch (UnsupportedEncodingException e) {
-      throw new FriendlyCaptchaException("Could not encode payload", e);
+    String entity =
+        "solution="
+            + URLEncoder.encode(solution, StandardCharsets.UTF_8)
+            + "&secret="
+            + URLEncoder.encode(apiKey, StandardCharsets.UTF_8);
+    if (!isEmpty(sitekey)) {
+      entity += "&sitekey=" + URLEncoder.encode(sitekey, StandardCharsets.UTF_8);
     }
+    return entity.getBytes(StandardCharsets.UTF_8);
   }
 
   @Override
-  protected void configureVersionSpecificHeaders(HttpURLConnection connection) {
+  protected void addVersionSpecificHeaders(HttpRequest.Builder requestBuilder) {
     // v1 authenticates via body field — no additional headers required
   }
 
   @Override
-  protected boolean processResponse(HttpURLConnection connection, InputStream inputStream)
-      throws IOException {
+  protected boolean processResponse(int statusCode, InputStream inputStream) throws IOException {
     VerificationResponse response = readResponse(inputStream, VerificationResponse.class);
     if (verbose) {
-      log.info("Received response {} with status code {}", response, connection.getResponseCode());
+      log.info("Received response {} with status code {}", response, statusCode);
     }
-    if (connection.getResponseCode() == 200) {
+    if (statusCode == 200) {
       return response.isSuccess();
     }
 

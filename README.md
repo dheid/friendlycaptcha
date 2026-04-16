@@ -8,8 +8,10 @@ This client library allows JVM-based applications to verify [Friendly Captcha](h
 call and interprets the result.
 
 * Easy to use (see example below)
+* Requires Java 17 or later
 * Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
 * Supports both Friendly Captcha API v1 and v2
+* Uses the built-in Java HTTP client — no extra HTTP library dependency
 * Only two dependencies: Jackson and SLF4J
 
 ## :wrench: Usage
@@ -21,20 +23,20 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>2.1.0</version>
+  <version>3.0.0</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:2.1.0'
+implementation 'org.drjekyll:friendlycaptcha:3.0.0'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:2.1.0")
+implementation("org.drjekyll:friendlycaptcha:3.0.0")
 ```
 
 ### API v2 (recommended)
@@ -149,7 +151,14 @@ class FriendlyCaptchaV1Example {
 
 On a non-successful response, `verify` throws a `FriendlyCaptchaException` containing either the response details or a description of the error.
 
-### Migration from 2.0.x
+### Migration from 2.x
+
+#### Java version requirement
+
+Version 3.0.0 requires **Java 17 or later**. If your project still targets Java 8, stay on
+the 2.x release line.
+
+#### Replace deprecated builder
 
 Code using the old `FriendlyCaptchaVerifier.builder()` still compiles and behaves identically
 (v1 API), but is now deprecated. Replace it with `FriendlyCaptchaVerifierV1.builder()`:
@@ -183,8 +192,9 @@ methods:
   `https://api.friendlycaptcha.com/api/v1/siteverify` for `FriendlyCaptchaVerifierV1`.
 * `.connectTimeout(...)` allows you to change the default connection timeout of 10 seconds. 0 is
   interpreted as infinite, null uses the system default
-* `.socketTimeout(...)` allows you to change the default socket timeout of 30 seconds. 0 is
-  interpreted as infinite, null uses the system default
+* `.socketTimeout(...)` allows you to change the default request timeout of 30 seconds, which
+  covers the entire request from sending to receiving the full response. A `null` value means no
+  timeout is applied.
 * `.sitekey(...)` is an optional sitekey that you want to make sure the puzzle was generated from.
 * `.proxyHost(...)` The hostname or IP address of an optional HTTP proxy. `proxyPort` must be
   configured as well
@@ -217,13 +227,21 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 
 ## :loudspeaker: Release Notes
 
-### 2.1.0
+### 3.0.0
 
-* Added support for Friendly Captcha API v2 (`FriendlyCaptchaVersion.V2`): sends the API key as
-  the `X-API-Key` header, uses the `response` body parameter, and parses the v2 response format
+* **Requires Java 17** — dropped support for Java 8
+* Replaced `HttpURLConnection` with the built-in Java `HttpClient` (`java.net.http`) — no
+  third-party HTTP library required
+* `socketTimeout` now covers the entire request duration (connect + send + receive) instead of
+  the per-read socket timeout
+* Split `FriendlyCaptchaVerifier` into an abstract base class and two concrete implementations:
+  `FriendlyCaptchaVerifierV1` (legacy API) and `FriendlyCaptchaVerifierV2` (current API)
+* Added support for Friendly Captcha API v2: sends the API key as the `X-API-Key` header, uses
+  the `response` body parameter, and parses the v2 response format
+* Deprecated `FriendlyCaptchaVerifier.builder()` — use `FriendlyCaptchaVerifierV1.builder()` or
+  `FriendlyCaptchaVerifierV2.builder()` instead
 * Fixed sitekey not being URL-encoded in the POST body
 * Fixed potential NullPointerException when the API returns an error response without a body
-* Removed ineffective standalone `charset` HTTP header
 
 ### 2.0.10 / 2.0.11
 
