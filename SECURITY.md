@@ -5,9 +5,10 @@
 The following versions of this library are
 currently being supported with security updates.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
+| Version | Supported |
+|---------|-----------|
+| 2.x.x   | yes       |
+| 1.x.x   | no        |
 
 ## Reporting a Vulnerability
 

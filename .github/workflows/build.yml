@@ -9,6 +9,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
     steps:
     - uses: actions/checkout@v6
     - uses: actions/setup-java@v5
@@ -16,4 +18,49 @@ jobs:
         java-version: '8'
         distribution: 'temurin'
         cache: maven
-    - run: mvn -B verify
+    - run: mvn -B verify javadoc:javadoc
+    - name: Publish test report
+      uses: dorny/test-reporter@v2
+      if: always()
+      with:
+        name: JUnit Tests
+        path: target/surefire-reports/TEST-*.xml
+        reporter: java-junit
+        fail-on-error: false
+    - name: Assemble Pages site
+      if: github.ref == 'refs/heads/main'
+      run: |
+        mkdir -p target/site/pages/apidocs target/site/pages/coverage
+        cp -r target/site/apidocs/. target/site/pages/apidocs/
+        cp -r target/site/jacoco/. target/site/pages/coverage/
+        cat > target/site/pages/index.html <<'EOF'
+        <!DOCTYPE html>
+        <html>
+          <head><meta charset="UTF-8"><title>Friendly Captcha Java Client</title></head>
+          <body>
+            <h1>Friendly Captcha Java Client</h1>
+            <ul>
+              <li><a href="apidocs/">Javadoc</a></li>
+              <li><a href="coverage/">Test Coverage Report</a></li>
+            </ul>
+          </body>
+        </html>
+        EOF
+    - uses: actions/upload-pages-artifact@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        path: target/site/pages/
+
+  publish-docs:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+    - id: deploy
+      uses: actions/deploy-pages@v4

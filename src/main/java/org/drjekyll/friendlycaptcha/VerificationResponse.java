@@ -15,5 +15,4 @@ public class VerificationResponse {
   private String details;
 
   private Collection<VerificationError> errors;
-
 }

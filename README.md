@@ -9,6 +9,7 @@ call and interprets the result.
 
 * Easy to use (see example below)
 * Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
+* Supports both Friendly Captcha API v1 and v2
 * Only two dependencies: Jackson and SLF4J
 
 ## :wrench: Usage
@@ -20,30 +21,34 @@ Include the dependency using Maven
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
-  <version>2.0.11</version>
+  <version>2.1.0</version>
 </dependency>
 ```
 
 or Gradle with Groovy DSL:
 
 ```groovy
-implementation 'org.drjekyll:friendlycaptcha:2.0.11'
+implementation 'org.drjekyll:friendlycaptcha:2.1.0'
 ```
 
 or Gradle with Kotlin DSL:
 
 ```kotlin
-implementation("org.drjekyll:friendlycaptcha:2.0.11")
+implementation("org.drjekyll:friendlycaptcha:2.1.0")
 ```
 
-Run your build tool and you can include the verifier as follows:
+### API v2 (recommended)
+
+Friendly Captcha API v2 is the current version. The API key is sent as a request header and the
+endpoint is `https://global.frcapi.com/api/v2/captcha/siteverify`.
 
 ```java
 import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV2;
 
-public class FriendlyCaptchaExample {
+public class FriendlyCaptchaV2Example {
 
-  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifier
+  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifierV2
     .builder()
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
@@ -66,8 +71,66 @@ public class FriendlyCaptchaExample {
 Or Kotlin:
 
 ```kotlin
-class FriendlyCaptchaExample {
-  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifier
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV2
+
+class FriendlyCaptchaV2Example {
+  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifierV2
+    .builder()
+    .apiKey("YOUR_API_KEY")
+    .sitekey("AN_OPTIONAL_SITE_KEY")
+    .build()
+
+  fun checkSolution(solution: String?) {
+    val success: Boolean = friendlyCaptchaVerifier.verify(solution)
+    if (success) {
+      // continue
+    } else {
+      // stop processing
+    }
+  }
+}
+```
+
+### API v1 (legacy)
+
+Friendly Captcha API v1 is the legacy version. The API key and solution are sent as form fields to
+`https://api.friendlycaptcha.com/api/v1/siteverify`.
+
+```java
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV1;
+
+public class FriendlyCaptchaV1Example {
+
+  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifierV1
+    .builder()
+    .apiKey("YOUR_API_KEY")
+    .sitekey("AN_OPTIONAL_SITE_KEY")
+    .build();
+
+  public void checkSolution(String solution) {
+
+    boolean success = friendlyCaptchaVerifier.verify(solution);
+    if (success) {
+      // continue
+    } else {
+      // stop processing
+    }
+
+  }
+
+}
+```
+
+Or Kotlin:
+
+```kotlin
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV1
+
+class FriendlyCaptchaV1Example {
+  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifierV1
     .builder()
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
@@ -86,15 +149,38 @@ class FriendlyCaptchaExample {
 
 On a non-successful response, `verify` throws a `FriendlyCaptchaException` containing either the response details or a description of the error.
 
+### Migration from 2.0.x
+
+Code using the old `FriendlyCaptchaVerifier.builder()` still compiles and behaves identically
+(v1 API), but is now deprecated. Replace it with `FriendlyCaptchaVerifierV1.builder()`:
+
+```java
+// Before (deprecated)
+FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifier.builder()
+    .apiKey("YOUR_API_KEY")
+    .build();
+
+// After
+FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifierV1.builder()
+    .apiKey("YOUR_API_KEY")
+    .build();
+```
+
 ## :gear: Verifier Parameters
 
 The Friendly Captcha Verifier currently supports the following builder methods:
 
-* `.apiKey(...)` An API key that proves it's you, create one on the Friendly Captcha website
+Both `FriendlyCaptchaVerifierV1` and `FriendlyCaptchaVerifierV2` share the following builder
+methods:
+
+* `.apiKey(...)` An API key that proves it's you, create one on the Friendly Captcha website.
+  For v2, the key is sent as the `X-API-Key` request header. For v1, it is sent as the `secret`
+  form field.
 * `.objectMapper(...)` If you would like to use an existing or custom object mapper
 * `.verificationEndpoint(...)` An `URI` object that can point to another verification endpoint (for
-  example if you would like to use EU hosts). Default
-  is: https://api.friendlycaptcha.com/api/v1/siteverify
+  example a regional endpoint). If not set, defaults to
+  `https://global.frcapi.com/api/v2/captcha/siteverify` for `FriendlyCaptchaVerifierV2` and
+  `https://api.friendlycaptcha.com/api/v1/siteverify` for `FriendlyCaptchaVerifierV1`.
 * `.connectTimeout(...)` allows you to change the default connection timeout of 10 seconds. 0 is
   interpreted as infinite, null uses the system default
 * `.socketTimeout(...)` allows you to change the default socket timeout of 30 seconds. 0 is
@@ -113,7 +199,7 @@ The Friendly Captcha Verifier currently supports the following builder methods:
 
 To build and locally install the library and run the tests, just call
 
-    mvn install
+        mvn install
 
 ## :handshake: Contributing
 
@@ -131,8 +217,10 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 
 ## :loudspeaker: Release Notes
 
-### 2.0.12
+### 2.1.0
 
+* Added support for Friendly Captcha API v2 (`FriendlyCaptchaVersion.V2`): sends the API key as
+  the `X-API-Key` header, uses the `response` body parameter, and parses the v2 response format
 * Fixed sitekey not being URL-encoded in the POST body
 * Fixed potential NullPointerException when the API returns an error response without a body
 * Removed ineffective standalone `charset` HTTP header
@@ -164,3 +252,4 @@ Got rid of HTTP client dependency. Apache HTTP Client is no longer needed.
 ### 1.0.0
 
 * Initial version
+

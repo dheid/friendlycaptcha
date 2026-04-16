@@ -1,5 +1,4 @@
 <!-- Please describe your pull request here. -->
-
 - [ ] Make sure you are opening from a **topic/feature/bugfix branch** (right side) and not your main branch!
 - [ ] Ensure that the pull request title represents the desired changelog entry
 - [ ] Please describe what you did

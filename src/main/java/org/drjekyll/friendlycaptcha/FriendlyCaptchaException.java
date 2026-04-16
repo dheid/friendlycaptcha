@@ -14,5 +14,4 @@ public class FriendlyCaptchaException extends RuntimeException {
   public FriendlyCaptchaException(String message, Throwable cause) {
     super(message, cause);
   }
-
 }
