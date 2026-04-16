@@ -31,7 +31,7 @@ jobs:
       if: github.ref == 'refs/heads/main'
       run: |
         mkdir -p target/site/pages/apidocs target/site/pages/coverage
-        cp -r target/site/apidocs/. target/site/pages/apidocs/
+        cp -r target/site/reports/apidocs/. target/site/pages/apidocs/
         cp -r target/site/jacoco/. target/site/pages/coverage/
         cat > target/site/pages/index.html <<'EOF'
         <!DOCTYPE html>
