@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum VerificationError {
+public enum ErrorCode {
   @JsonProperty("secret_missing")
   SECRET_MISSING("No secret API key transmitted"),
 
@@ -24,6 +24,27 @@ public enum VerificationError {
 
   @JsonProperty("solution_timeout_or_duplicate")
   SOLUTION_TIMEOUT_OR_DUPLICATE("The solution has expired or already been used"),
+
+  @JsonProperty("sitekey_invalid")
+  SITEKEY_INVALID("The provided sitekey was invalid"),
+
+  @JsonProperty("auth_required")
+  AUTH_REQUIRED("Missing API key"),
+
+  @JsonProperty("auth_invalid")
+  AUTH_INVALID("The provided API key was invalid"),
+
+  @JsonProperty("response_missing")
+  RESPONSE_MISSING("Response parameter is missing"),
+
+  @JsonProperty("response_invalid")
+  RESPONSE_INVALID("Invalid response provided"),
+
+  @JsonProperty("response_timeout")
+  REQUEST_TIMEOUT("The response has expired"),
+
+  @JsonProperty("response_duplicate")
+  RESPONSE_DUPLICATE("The response has already been used"),
   ;
 
   private final String description;

@@ -1,6 +1,7 @@
 package org.drjekyll.friendlycaptcha;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import static org.drjekyll.friendlycaptcha.StringUtil.isEmpty;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -10,90 +11,111 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import lombok.NonNull;
-import lombok.experimental.SuperBuilder;
+import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
+import org.drjekyll.friendlycaptcha.v1.FriendlyCaptchaClientV1;
+import org.drjekyll.friendlycaptcha.v2.FriendlyCaptchaClientV2;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * Abstract base class for verifying Friendly Captcha solutions. Use {@link
- * FriendlyCaptchaVerifierV1} for the v1 API or {@link FriendlyCaptchaVerifierV2} for the v2 API.
+ * Verifier for Friendly Captcha solutions.
+ *
+ * <p>Use {@link #builder()} to configure and create an instance. The API version defaults to {@link
+ * FriendlyCaptchaVersion#V1}. Set {@link
+ * FriendlyCaptchaVerifierBuilder#version(FriendlyCaptchaVersion)} to {@link
+ * FriendlyCaptchaVersion#V2} for the v2 API.
  *
  * <p>You will need an API key that you can create on the <a
  * href="https://friendlycaptcha.com/account">Friendly Captcha account page</a>.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifier.builder()
+ *     .apiKey("YOUR_API_KEY")
+ *     .build();
+ * boolean valid = verifier.verify(solution);
+ * }</pre>
  */
 @Slf4j
-@SuperBuilder
-public abstract class FriendlyCaptchaVerifier {
+public class FriendlyCaptchaVerifier {
 
-  /** An API key that proves it's you, create one on the Friendly Captcha website. */
-  @NonNull protected final String apiKey;
+  private final URI effectiveEndpoint;
 
-  @NonNull @lombok.Builder.Default private ObjectMapper objectMapper = new ObjectMapper();
+  private final Duration socketTimeout;
 
-  /**
-   * The URI that points to the verification API endpoint.
-   *
-   * <p>If not set, each version uses its own default endpoint.
-   */
-  @Nullable private URI verificationEndpoint;
+  private final boolean verbose;
+
+  private final FriendlyCaptchaClient friendlyCaptchaClient;
+
+  private final HttpClient httpClient;
 
   /**
-   * The timeout until a connection is established.
-   *
-   * <p>A timeout value of zero is interpreted as an infinite timeout. A {@code null} value is
-   * interpreted as undefined (system default if applicable).
-   *
-   * <p>Default: 10 seconds
+   * @param apiKey An API key that proves it's you, create one on the Friendly Captcha website.
+   * @param objectMapper A custom Jackson object mapper if you want to use it
+   * @param verificationEndpoint The URI that points to the verification API endpoint. If not set,
+   *     each version uses its own default endpoint.
+   * @param connectTimeout The timeout until a connection is established. A timeout value of zero is
+   *     interpreted as an infinite timeout. A {@code null} value is interpreted as undefined
+   *     (system default if applicable).
+   * @param socketTimeout The timeout for the entire request (connecting, sending, and receiving the
+   *     response). A {@code null} value means no request timeout is applied. Default: 30 seconds
+   * @param sitekey
+   * @param proxyHost The hostname or IP address of an optional HTTP proxy. {@code proxyPort} must
+   *     be configured as well.
+   * @param proxyPort The port of an HTTP proxy. Must be > 0. {@code proxyHost} must be configured
+   *     as well.
+   * @param proxyUserName If the HTTP proxy requires a user name for basic authentication, it can be
+   *     configured here. Proxy host, port and password must also be set.
+   * @param proxyPassword The corresponding password for the basic auth proxy user. The proxy host,
+   *     port and user name must be set as well.
+   * @param verbose Logs INFO messages with detailed information.
+   * @param version The Friendly Captcha API version to use. Defaults to API version 1 (V1)
    */
-  @lombok.Builder.Default private Duration connectTimeout = Duration.ofSeconds(10L);
-
-  /**
-   * The timeout for the entire request (connecting, sending, and receiving the response).
-   *
-   * <p>A {@code null} value means no request timeout is applied.
-   *
-   * <p>Default: 30 seconds
-   */
-  @lombok.Builder.Default private Duration socketTimeout = Duration.ofSeconds(30L);
-
-  /** An optional sitekey that you want to make sure the puzzle was generated from. */
-  @Nullable protected String sitekey;
-
-  /**
-   * The hostname or IP address of an optional HTTP proxy. {@code proxyPort} must be configured as
-   * well.
-   */
-  @Nullable private String proxyHost;
-
-  /** The port of an HTTP proxy. {@code proxyHost} must be configured as well. */
-  private int proxyPort;
-
-  /**
-   * If the HTTP proxy requires a user name for basic authentication, it can be configured here.
-   * Proxy host, port and password must also be set.
-   */
-  @Nullable private String proxyUserName;
-
-  /**
-   * The corresponding password for the basic auth proxy user. The proxy host, port and user name
-   * must be set as well.
-   */
-  @Nullable private String proxyPassword;
-
-  /** Logs INFO messages with detailed information. */
-  protected boolean verbose;
-
-  /**
-   * Creates a builder for the v1 API.
-   *
-   * @deprecated Use {@link FriendlyCaptchaVerifierV1#builder()} or {@link
-   *     FriendlyCaptchaVerifierV2#builder()} instead.
-   */
-  @Deprecated
-  public static FriendlyCaptchaVerifierBuilder<?, ?> builder() {
-    return FriendlyCaptchaVerifierV1.builder();
+  @Builder
+  public FriendlyCaptchaVerifier(
+      @NonNull String apiKey,
+      @Nullable ObjectMapper objectMapper,
+      @Nullable URI verificationEndpoint,
+      @Nullable Duration connectTimeout,
+      @Nullable Duration socketTimeout,
+      @Nullable String sitekey,
+      @Nullable String proxyHost,
+      int proxyPort,
+      @Nullable String proxyUserName,
+      @Nullable String proxyPassword,
+      boolean verbose,
+      FriendlyCaptchaVersion version) {
+    StringUtil.assertNotEmpty(apiKey, "API key must not be null or empty");
+    this.socketTimeout = socketTimeout;
+    this.verbose = verbose;
+    VerificationResponseReader verificationResponseReader =
+        new VerificationResponseReader(objectMapper == null ? new ObjectMapper() : objectMapper);
+    FriendlyCaptchaParams friendlyCaptchaParams = new FriendlyCaptchaParams(apiKey, sitekey);
+    if (version == FriendlyCaptchaVersion.V2) {
+      this.friendlyCaptchaClient =
+          new FriendlyCaptchaClientV2(friendlyCaptchaParams, verificationResponseReader);
+    } else {
+      this.friendlyCaptchaClient =
+          new FriendlyCaptchaClientV1(friendlyCaptchaParams, verificationResponseReader);
+    }
+    this.effectiveEndpoint =
+        verificationEndpoint != null
+            ? requireHttpVerificationEndpointScheme(verificationEndpoint)
+            : friendlyCaptchaClient.getDefaultEndpoint();
+    HttpClient.Builder builder = HttpClient.newBuilder();
+    if (connectTimeout != null) {
+      builder.connectTimeout(connectTimeout);
+    }
+    if (!isEmpty(proxyHost) && proxyPort > 0) {
+      builder.proxy(ProxySelector.of(new InetSocketAddress(proxyHost, proxyPort)));
+      if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
+        builder.authenticator(new ProxyAuthenticator(proxyUserName, proxyPassword));
+      }
+    }
+    this.httpClient = builder.build();
   }
 
   /**
@@ -105,76 +127,29 @@ public abstract class FriendlyCaptchaVerifier {
    * @throws FriendlyCaptchaException if the API returns an error (authentication failure, bad
    *     request, etc.) or the response cannot be read
    */
-  public final boolean verify(@Nonnull String solution) {
-    assertNotEmpty(solution, "Solution must not be null or empty");
-    assertNotEmpty(apiKey, "API key must not be null or empty");
-
-    URI effectiveEndpoint =
-        verificationEndpoint != null ? verificationEndpoint : getDefaultEndpoint();
-    assertVerificationEndpointScheme(effectiveEndpoint);
+  public boolean verify(@NonNull String solution) {
+    StringUtil.assertNotEmpty(solution, "Solution must not be null or empty");
 
     if (verbose) {
       log.info("Verifying friendly captcha solution using endpoint {}", effectiveEndpoint);
     }
 
-    byte[] body = buildRequestBody(solution);
-    HttpClient client = buildHttpClient();
+    byte[] body = friendlyCaptchaClient.buildRequestBody(solution);
     HttpRequest request = buildHttpRequest(body, effectiveEndpoint);
 
     try {
       HttpResponse<InputStream> response =
-          client.send(request, HttpResponse.BodyHandlers.ofInputStream());
-      return processResponse(response.statusCode(), response.body());
+          httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+      if (verbose) {
+        log.info("Received response {} with status code {}", response, response.statusCode());
+      }
+      return friendlyCaptchaClient.processResponse(response.statusCode(), response.body());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new FriendlyCaptchaException("Could not check solution", e);
     } catch (IOException e) {
       throw new FriendlyCaptchaException("Could not check solution", e);
     }
-  }
-
-  /** Returns the default verification endpoint URL for this API version. */
-  protected abstract URI getDefaultEndpoint();
-
-  /** Builds the URL-encoded POST body for the given captcha solution. */
-  protected abstract byte[] buildRequestBody(String solution);
-
-  /** Adds any version-specific request headers to the builder (e.g. {@code X-API-Key} for v2). */
-  protected abstract void addVersionSpecificHeaders(HttpRequest.Builder requestBuilder);
-
-  /**
-   * Parses the response body and returns {@code true} if the solution is valid, {@code false} if
-   * rejected, or throws {@link FriendlyCaptchaException} on API errors.
-   */
-  protected abstract boolean processResponse(int statusCode, InputStream body) throws IOException;
-
-  /**
-   * Reads and deserialises the response body into the given class using the shared ObjectMapper.
-   */
-  protected <T> T readResponse(@Nonnull InputStream inputStream, @Nonnull Class<T> responseClass) {
-    try {
-      return objectMapper.readValue(inputStream, responseClass);
-    } catch (Exception e) {
-      throw new FriendlyCaptchaException("Could not read response from verification API", e);
-    }
-  }
-
-  protected static boolean isEmpty(@Nullable String str) {
-    return str == null || str.trim().isEmpty();
-  }
-
-  private HttpClient buildHttpClient() {
-    HttpClient.Builder builder = HttpClient.newBuilder();
-    if (connectTimeout != null) {
-      builder.connectTimeout(connectTimeout);
-    }
-    if (!isEmpty(proxyHost) && proxyPort > 0) {
-      builder.proxy(ProxySelector.of(new InetSocketAddress(proxyHost, proxyPort)));
-      if (!isEmpty(proxyUserName) && !isEmpty(proxyPassword)) {
-        builder.authenticator(new ProxyAuthenticator(proxyUserName, proxyPassword));
-      }
-    }
-    return builder.build();
   }
 
   private HttpRequest buildHttpRequest(byte[] body, URI endpoint) {
@@ -188,20 +163,15 @@ public abstract class FriendlyCaptchaVerifier {
     if (socketTimeout != null) {
       builder.timeout(socketTimeout);
     }
-    addVersionSpecificHeaders(builder);
+    friendlyCaptchaClient.addVersionSpecificHeaders(builder);
     return builder.build();
   }
 
-  private static void assertNotEmpty(@Nonnull String str, @Nullable String message) {
-    if (isEmpty(str)) {
-      throw new IllegalArgumentException(message);
-    }
-  }
-
-  private static void assertVerificationEndpointScheme(@Nonnull URI endpoint) {
+  private static URI requireHttpVerificationEndpointScheme(@NonNull URI endpoint) {
     String scheme = endpoint.getScheme();
     if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
       throw new FriendlyCaptchaException("Invalid verification endpoint URL");
     }
+    return endpoint;
   }
 }

@@ -7,19 +7,18 @@
 This client library allows JVM-based applications to verify [Friendly Captcha](https://www.friendlycaptcha.com) puzzle solutions. It wraps the necessary
 call and interprets the result.
 
-* Easy to use (see example below)
-* Requires Java 17 or later
-* Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
-* Supports both Friendly Captcha API v1 and v2
-* Uses the built-in Java HTTP client — no extra HTTP library dependency
-* Only two dependencies: Jackson and SLF4J
+- Easy to use (see example below)
+- Requires Java 17 or later
+- Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
+- Supports both Friendly Captcha API v1 and v2
+- Uses the built-in Java HTTP client — no extra HTTP library dependency
+- Only two runtime dependencies: [Jackson 3](https://github.com/FasterXML/jackson) (`tools.jackson.core:jackson-databind`) and SLF4J
 
 ## :wrench: Usage
 
-Include the dependency using Maven
+Include the dependency using Maven:
 
 ```xml
-
 <dependency>
   <groupId>org.drjekyll</groupId>
   <artifactId>friendlycaptcha</artifactId>
@@ -39,32 +38,42 @@ or Gradle with Kotlin DSL:
 implementation("org.drjekyll:friendlycaptcha:3.0.0")
 ```
 
+> **Jackson 3 note:** This library depends on Jackson 3 (`tools.jackson.core:jackson-databind`).
+> If your project currently uses Jackson 2 (`com.fasterxml.jackson.core`), you will need to
+> [migrate to Jackson 3](https://github.com/FasterXML/jackson/blob/main/jackson3/MIGRATING_TO_JACKSON_3.md)
+> or manage both versions on the classpath.
+
 ### API v2 (recommended)
 
-Friendly Captcha API v2 is the current version. The API key is sent as a request header and the
-endpoint is `https://global.frcapi.com/api/v2/captcha/siteverify`.
+Friendly Captcha API v2 is the current recommended version. The API key is sent as the
+`X-API-Key` request header and the solution as the `response` body parameter to
+`https://global.frcapi.com/api/v2/captcha/siteverify`.
 
 ```java
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
 import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV2;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion;
 
 public class FriendlyCaptchaV2Example {
 
-  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifierV2
+  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifier
     .builder()
+    .version(FriendlyCaptchaVersion.V2)
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
     .build();
 
   public void checkSolution(String solution) {
-
-    boolean success = friendlyCaptchaVerifier.verify(solution);
-    if (success) {
-      // continue
-    } else {
-      // stop processing
+    try {
+      boolean success = friendlyCaptchaVerifier.verify(solution);
+      if (success) {
+        // continue
+      } else {
+        // solution invalid, expired, or already used — reject the submission
+      }
+    } catch (FriendlyCaptchaException e) {
+      // API or network error — log and decide whether to fail open or closed
     }
-
   }
 
 }
@@ -73,53 +82,62 @@ public class FriendlyCaptchaV2Example {
 Or Kotlin:
 
 ```kotlin
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException
 import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV2
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion
 
 class FriendlyCaptchaV2Example {
-  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifierV2
+  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifier
     .builder()
+    .version(FriendlyCaptchaVersion.V2)
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
     .build()
 
   fun checkSolution(solution: String?) {
-    val success: Boolean = friendlyCaptchaVerifier.verify(solution)
-    if (success) {
-      // continue
-    } else {
-      // stop processing
+    try {
+      val success: Boolean = friendlyCaptchaVerifier.verify(solution)
+      if (success) {
+        // continue
+      } else {
+        // solution invalid, expired, or already used — reject the submission
+      }
+    } catch (e: FriendlyCaptchaException) {
+      // API or network error — log and decide whether to fail open or closed
     }
   }
 }
 ```
 
-### API v1 (legacy)
+### API v1 (legacy, default)
 
-Friendly Captcha API v1 is the legacy version. The API key and solution are sent as form fields to
+Friendly Captcha API v1 is the default when no `.version(...)` is set. The API key is sent as
+the `secret` form field and the solution as the `solution` form field to
 `https://api.friendlycaptcha.com/api/v1/siteverify`.
 
 ```java
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
 import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV1;
 
-public class FriendlyCaptchaV1Example {
+public class FriendlyCaptchaExample {
 
-  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifierV1
+  private final FriendlyCaptchaVerifier friendlyCaptchaVerifier = FriendlyCaptchaVerifier
     .builder()
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
     .build();
 
   public void checkSolution(String solution) {
-
-    boolean success = friendlyCaptchaVerifier.verify(solution);
-    if (success) {
-      // continue
-    } else {
-      // stop processing
+    try {
+      boolean success = friendlyCaptchaVerifier.verify(solution);
+      if (success) {
+        // continue
+      } else {
+        // solution invalid, expired, or already used — reject the submission
+      }
+    } catch (FriendlyCaptchaException e) {
+      // API or network error — log and decide whether to fail open or closed
     }
-
   }
 
 }
@@ -128,28 +146,54 @@ public class FriendlyCaptchaV1Example {
 Or Kotlin:
 
 ```kotlin
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException
 import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifierV1
 
-class FriendlyCaptchaV1Example {
-  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifierV1
+class FriendlyCaptchaExample {
+  private val friendlyCaptchaVerifier: FriendlyCaptchaVerifier = FriendlyCaptchaVerifier
     .builder()
     .apiKey("YOUR_API_KEY")
     .sitekey("AN_OPTIONAL_SITE_KEY")
     .build()
 
   fun checkSolution(solution: String?) {
-    val success: Boolean = friendlyCaptchaVerifier.verify(solution)
-    if (success) {
-      // continue
-    } else {
-      // stop processing
+    try {
+      val success: Boolean = friendlyCaptchaVerifier.verify(solution)
+      if (success) {
+        // continue
+      } else {
+        // solution invalid, expired, or already used — reject the submission
+      }
+    } catch (e: FriendlyCaptchaException) {
+      // API or network error — log and decide whether to fail open or closed
     }
   }
 }
 ```
 
-On a non-successful response, `verify` throws a `FriendlyCaptchaException` containing either the response details or a description of the error.
+### Return values and exceptions
+
+`verify(solution)` has three possible outcomes, regardless of whether you use v1 or v2:
+
+|              Outcome              |                                                   When                                                   |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------|
+| Returns `true`                    | The solution is valid and was accepted                                                                   |
+| Returns `false`                   | The solution is invalid, expired, or already used                                                        |
+| Throws `FriendlyCaptchaException` | The API rejected the request itself (bad API key, malformed request, network error, unreadable response) |
+
+`verify` also throws `IllegalArgumentException` if the solution or API key is null or empty.
+
+### Regional endpoints (v2)
+
+The v2 API offers regional endpoints. Pass a custom URI via `.verificationEndpoint(...)`:
+
+```java
+FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifier.builder()
+    .version(FriendlyCaptchaVersion.V2)
+    .apiKey("YOUR_API_KEY")
+    .verificationEndpoint(URI.create("https://eu.frcapi.com/api/v2/captcha/siteverify"))
+    .build();
+```
 
 ### Migration from 2.x
 
@@ -158,58 +202,38 @@ On a non-successful response, `verify` throws a `FriendlyCaptchaException` conta
 Version 3.0.0 requires **Java 17 or later**. If your project still targets Java 8, stay on
 the 2.x release line.
 
-#### Replace deprecated builder
+#### Jackson dependency
 
-Code using the old `FriendlyCaptchaVerifier.builder()` still compiles and behaves identically
-(v1 API), but is now deprecated. Replace it with `FriendlyCaptchaVerifierV1.builder()`:
-
-```java
-// Before (deprecated)
-FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifier.builder()
-    .apiKey("YOUR_API_KEY")
-    .build();
-
-// After
-FriendlyCaptchaVerifier verifier = FriendlyCaptchaVerifierV1.builder()
-    .apiKey("YOUR_API_KEY")
-    .build();
-```
+Version 3.0.0 upgraded the Jackson dependency from Jackson 2 (`com.fasterxml.jackson.core`) to
+Jackson 3 (`tools.jackson.core`). If your project still uses Jackson 2, you will need to either
+migrate alongside this library or continue on the 2.x release line.
 
 ## :gear: Verifier Parameters
 
-The Friendly Captcha Verifier currently supports the following builder methods:
+`FriendlyCaptchaVerifier.builder()` supports the following methods:
 
-Both `FriendlyCaptchaVerifierV1` and `FriendlyCaptchaVerifierV2` share the following builder
-methods:
-
-* `.apiKey(...)` An API key that proves it's you, create one on the Friendly Captcha website.
-  For v2, the key is sent as the `X-API-Key` request header. For v1, it is sent as the `secret`
-  form field.
-* `.objectMapper(...)` If you would like to use an existing or custom object mapper
-* `.verificationEndpoint(...)` An `URI` object that can point to another verification endpoint (for
-  example a regional endpoint). If not set, defaults to
-  `https://global.frcapi.com/api/v2/captcha/siteverify` for `FriendlyCaptchaVerifierV2` and
-  `https://api.friendlycaptcha.com/api/v1/siteverify` for `FriendlyCaptchaVerifierV1`.
-* `.connectTimeout(...)` allows you to change the default connection timeout of 10 seconds. 0 is
-  interpreted as infinite, null uses the system default
-* `.socketTimeout(...)` allows you to change the default request timeout of 30 seconds, which
-  covers the entire request from sending to receiving the full response. A `null` value means no
-  timeout is applied.
-* `.sitekey(...)` is an optional sitekey that you want to make sure the puzzle was generated from.
-* `.proxyHost(...)` The hostname or IP address of an optional HTTP proxy. `proxyPort` must be
-  configured as well
-* `.proxyPort(...)` The port of an HTTP proxy. `proxyHost` must be configured as well.
-* `.proxyUserName(...)` If the HTTP proxy requires a user name for basic authentication, it can be
-  configured with this method. Proxy host, port and password must also be set.
-* `.proxyPassword(...)` The corresponding password for the basic auth proxy user. The proxy host,
-  port and user name must be set as well.
-* `.verbose(...)` logs detailed information using INFO level
+|          Parameter           |                                                                                                                            Description                                                                                                                            |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `.apiKey(...)`               | **Required.** The API key from your Friendly Captcha account.                                                                                                                                                                                                     |
+| `.version(...)`              | `FriendlyCaptchaVersion.V1` (default) or `FriendlyCaptchaVersion.V2` (recommended). For v1, the API key is sent as the `secret` form field. For v2, it is sent as the `X-API-Key` request header.                                                                 |
+| `.sitekey(...)`              | Optional sitekey to verify that the puzzle was generated for your site.                                                                                                                                                                                           |
+| `.verificationEndpoint(...)` | Custom verification endpoint URI. Defaults to `https://api.friendlycaptcha.com/api/v1/siteverify` for v1 and `https://global.frcapi.com/api/v2/captcha/siteverify` for v2. Use `https://eu.frcapi.com/api/v2/captcha/siteverify` for EU-only data residency (v2). |
+| `.connectTimeout(...)`       | Connection establishment timeout (`Duration`). `null` uses the system default, `Duration.ZERO` means infinite.                                                                                                                                                    |
+| `.socketTimeout(...)`        | Total request timeout (`Duration`) covering the entire request from sending to receiving the full response. `null` means no timeout.                                                                                                                              |
+| `.objectMapper(...)`         | Custom Jackson 3 `ObjectMapper` instance. If not set, a default `ObjectMapper` is used.                                                                                                                                                                           |
+| `.proxyHost(...)`            | Hostname or IP address of an HTTP proxy. `proxyPort` must also be set.                                                                                                                                                                                            |
+| `.proxyPort(...)`            | Port of an HTTP proxy. `proxyHost` must also be set.                                                                                                                                                                                                              |
+| `.proxyUserName(...)`        | Username for HTTP proxy basic authentication. `proxyHost`, `proxyPort`, and `proxyPassword` must also be set.                                                                                                                                                     |
+| `.proxyPassword(...)`        | Password for HTTP proxy basic authentication. `proxyHost`, `proxyPort`, and `proxyUserName` must also be set.                                                                                                                                                     |
+| `.verbose(true)`             | Logs endpoint and response details at INFO level via SLF4J.                                                                                                                                                                                                       |
 
 ## :factory_worker: Development
 
 To build and locally install the library and run the tests, just call
 
-        mvn install
+```shell
+mvn install
+```
 
 ## :handshake: Contributing
 
@@ -229,19 +253,20 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 
 ### 3.0.0
 
-* **Requires Java 17** — dropped support for Java 8
-* Replaced `HttpURLConnection` with the built-in Java `HttpClient` (`java.net.http`) — no
+- **Requires Java 17** — dropped support for Java 8
+- **Upgraded to Jackson 3** (`tools.jackson.core:jackson-databind:3.x`) — Jackson 2 is no longer
+  a transitive dependency
+- Replaced `HttpURLConnection` with the built-in Java `HttpClient` (`java.net.http`) — no
   third-party HTTP library required
-* `socketTimeout` now covers the entire request duration (connect + send + receive) instead of
+- `socketTimeout` now covers the entire request duration (connect + send + receive) instead of
   the per-read socket timeout
-* Split `FriendlyCaptchaVerifier` into an abstract base class and two concrete implementations:
-  `FriendlyCaptchaVerifierV1` (legacy API) and `FriendlyCaptchaVerifierV2` (current API)
-* Added support for Friendly Captcha API v2: sends the API key as the `X-API-Key` header, uses
+- Single `FriendlyCaptchaVerifier.builder()` entry point — select the API version via
+  `.version(FriendlyCaptchaVersion.V1)` (default) or `.version(FriendlyCaptchaVersion.V2)`
+- Added support for Friendly Captcha API v2: sends the API key as the `X-API-Key` header, uses
   the `response` body parameter, and parses the v2 response format
-* Deprecated `FriendlyCaptchaVerifier.builder()` — use `FriendlyCaptchaVerifierV1.builder()` or
-  `FriendlyCaptchaVerifierV2.builder()` instead
-* Fixed sitekey not being URL-encoded in the POST body
-* Fixed potential NullPointerException when the API returns an error response without a body
+- Fixed sitekey not being URL-encoded in the POST body
+- Internal refactoring: v1 and v2 implementations moved to `org.drjekyll.friendlycaptcha.v1`
+  and `org.drjekyll.friendlycaptcha.v2` sub-packages
 
 ### 2.0.10 / 2.0.11
 
@@ -257,17 +282,17 @@ Got rid of HTTP client dependency. Apache HTTP Client is no longer needed.
 
 ### 1.2.1 / 1.2.2
 
-* Update dependencies
+- Update dependencies
 
 ### 1.2.0
 
-* Add verbose logging
+- Add verbose logging
 
 ### 1.1.0
 
-* Add proxy authentication
+- Add proxy authentication
 
 ### 1.0.0
 
-* Initial version
+- Initial version
 

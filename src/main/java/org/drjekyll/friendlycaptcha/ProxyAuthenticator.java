@@ -2,9 +2,9 @@ package org.drjekyll.friendlycaptcha;
 
 import java.net.Authenticator;
 import java.net.PasswordAuthentication;
-import javax.annotation.Nullable;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 final class ProxyAuthenticator extends Authenticator {

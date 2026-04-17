@@ -1,4 +1,4 @@
-package org.drjekyll.friendlycaptcha;
+package org.drjekyll.friendlycaptcha.v1;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -9,10 +9,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
+import java.time.Duration;
+import org.drjekyll.friendlycaptcha.ErrorCode;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
-class FriendlyCaptchaVerifierV1Test {
+class FriendlyCaptchaClientV1Test {
 
   private static final String VALID_API_KEY =
       "B191X90HRE6PA37HDSUIMXS6L46HQGL1A5PGJBFQ12VCV52GTI4HJA2CGI";
@@ -28,19 +33,22 @@ class FriendlyCaptchaVerifierV1Test {
   @Test
   void requiresApiKey() {
 
-    assertThatThrownBy(() -> FriendlyCaptchaVerifierV1.builder().build())
-        .isInstanceOf(NullPointerException.class)
-        .hasMessage("apiKey is marked non-null but is null");
+    assertThatThrownBy(
+            () -> FriendlyCaptchaVerifier.builder().version(FriendlyCaptchaVersion.V1).build())
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("API key must not be null or empty");
   }
 
   @Test
   void validSolutionIsValid() {
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .sitekey(SITEKEY)
+            .connectTimeout(Duration.ofMinutes(10))
             .build();
 
     whenValidatesSolution(
@@ -53,9 +61,11 @@ class FriendlyCaptchaVerifierV1Test {
   void syntacticallyIncorrectSolutionIsInvalid() {
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
+            .verbose(true)
             .build();
 
     whenValidatesSolution("test");
@@ -66,10 +76,13 @@ class FriendlyCaptchaVerifierV1Test {
   @Test
   void failsOnEmptyApiKey() {
 
-    verifier =
-        FriendlyCaptchaVerifierV1.builder().verificationEndpoint(LOCALHOST).apiKey("").build();
-
-    assertThatThrownBy(() -> whenValidatesSolution("test"))
+    assertThatThrownBy(
+            () ->
+                FriendlyCaptchaVerifier.builder()
+                    .version(FriendlyCaptchaVersion.V1)
+                    .verificationEndpoint(LOCALHOST)
+                    .apiKey("")
+                    .build())
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("API key must not be null or empty");
   }
@@ -78,9 +91,11 @@ class FriendlyCaptchaVerifierV1Test {
   void failsOnEmptySolution() {
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
+            .socketTimeout(Duration.ofMinutes(10))
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution(""))
@@ -92,7 +107,8 @@ class FriendlyCaptchaVerifierV1Test {
   void failsOnInvalidApiKey() {
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey("invalid")
             .build();
@@ -117,7 +133,8 @@ class FriendlyCaptchaVerifierV1Test {
                     .withBody("{\"success\":true}")));
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .sitekey("NQT+VT3/JKLX")
@@ -134,7 +151,8 @@ class FriendlyCaptchaVerifierV1Test {
     stubFor(post("/").willReturn(aResponse().withStatus(500)));
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
@@ -146,13 +164,13 @@ class FriendlyCaptchaVerifierV1Test {
   @Test
   void rejectsNonHttpEndpoint() {
 
-    verifier =
-        FriendlyCaptchaVerifierV1.builder()
-            .verificationEndpoint(URI.create("ftp://example.com"))
-            .apiKey(VALID_API_KEY)
-            .build();
-
-    assertThatThrownBy(() -> whenValidatesSolution("test"))
+    assertThatThrownBy(
+            () ->
+                FriendlyCaptchaVerifier.builder()
+                    .version(FriendlyCaptchaVersion.V1)
+                    .verificationEndpoint(URI.create("ftp://example.com"))
+                    .apiKey(VALID_API_KEY)
+                    .build())
         .isInstanceOf(FriendlyCaptchaException.class)
         .hasMessage("Invalid verification endpoint URL");
   }
@@ -167,17 +185,19 @@ class FriendlyCaptchaVerifierV1Test {
                     .withStatus(400)
                     .withHeader("Content-Type", "application/json")
                     .withBody(
-                        "{\"success\":false,\"errors\":[\"solution_invalid\"],\"details\":\"Detailed error message\"}")));
+                        "{\"success\":false,\"errors\":[\"secret_invalid\"],\"details\":\"Provided secret API key invalid\"}")));
 
     verifier =
-        FriendlyCaptchaVerifierV1.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
         .isInstanceOf(FriendlyCaptchaException.class)
-        .hasMessage("Detailed error message");
+        .hasMessage("Provided secret API key invalid")
+        .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SECRET_INVALID);
   }
 
   private void whenValidatesSolution(String solution) {

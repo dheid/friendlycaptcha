@@ -1,4 +1,4 @@
-package org.drjekyll.friendlycaptcha;
+package org.drjekyll.friendlycaptcha.v2;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -9,10 +9,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
+import org.drjekyll.friendlycaptcha.ErrorCode;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
+import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
-class FriendlyCaptchaVerifierV2Test {
+class FriendlyCaptchaClientV2Test {
 
   private static final String VALID_API_KEY =
       "B191X90HRE6PA37HDSUIMXS6L46HQGL1A5PGJBFQ12VCV52GTI4HJA2CGI";
@@ -28,9 +32,9 @@ class FriendlyCaptchaVerifierV2Test {
   @Test
   void requiresApiKey() {
 
-    assertThatThrownBy(() -> FriendlyCaptchaVerifierV2.builder().build())
-        .isInstanceOf(NullPointerException.class)
-        .hasMessage("apiKey is marked non-null but is null");
+    assertThatThrownBy(() -> FriendlyCaptchaVerifier.builder().build())
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessage("API key must not be null or empty");
   }
 
   @Test
@@ -48,7 +52,8 @@ class FriendlyCaptchaVerifierV2Test {
                         "{\"success\":true,\"data\":{\"event_id\":\"abc123\",\"challenge\":{\"timestamp\":\"2024-01-01T00:00:00Z\",\"origin\":\"https://example.com\"},\"risk_intelligence\":null}}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .sitekey(SITEKEY)
@@ -74,7 +79,8 @@ class FriendlyCaptchaVerifierV2Test {
                         "{\"success\":false,\"error\":{\"error_code\":\"response_invalid\",\"detail\":\"The response was invalid\"}}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
@@ -99,7 +105,8 @@ class FriendlyCaptchaVerifierV2Test {
                         "{\"success\":false,\"error\":{\"error_code\":\"response_timeout\",\"detail\":\"The response has expired\"}}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
@@ -120,17 +127,18 @@ class FriendlyCaptchaVerifierV2Test {
                     .withStatus(401)
                     .withHeader("Content-Type", "application/json")
                     .withBody(
-                        "{\"success\":false,\"error\":{\"error_code\":\"auth_invalid\",\"detail\":\"The API key is invalid\"}}")));
+                        "{\"success\":false,\"error\":{\"error_code\":\"auth_invalid\",\"detail\":\"[40202]\"}}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey("invalid-key")
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
         .isInstanceOf(FriendlyCaptchaException.class)
-        .hasMessage("The API key is invalid");
+        .hasMessage("The provided API key was invalid");
   }
 
   @Test
@@ -147,7 +155,8 @@ class FriendlyCaptchaVerifierV2Test {
                     .withBody("{\"success\":true}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
@@ -163,7 +172,8 @@ class FriendlyCaptchaVerifierV2Test {
     stubFor(post("/").willReturn(aResponse().withStatus(500)));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
@@ -186,7 +196,8 @@ class FriendlyCaptchaVerifierV2Test {
                     .withBody("{\"success\":true}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .sitekey("NQT+VT3/JKLX")
@@ -198,7 +209,7 @@ class FriendlyCaptchaVerifierV2Test {
   }
 
   @Test
-  void usesErrorCodeWhenDetailAbsent() {
+  void includesErrorCode() {
 
     stubFor(
         post("/")
@@ -210,14 +221,16 @@ class FriendlyCaptchaVerifierV2Test {
                     .withBody("{\"success\":false,\"error\":{\"error_code\":\"bad_request\"}}")));
 
     verifier =
-        FriendlyCaptchaVerifierV2.builder()
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
         .isInstanceOf(FriendlyCaptchaException.class)
-        .hasMessage("bad_request");
+        .hasFieldOrPropertyWithValue("errorCode", ErrorCode.BAD_REQUEST);
+    ;
   }
 
   private void whenValidatesSolution(String solution) {
