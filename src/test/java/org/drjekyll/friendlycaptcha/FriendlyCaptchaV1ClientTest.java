@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
@@ -138,6 +139,57 @@ class FriendlyCaptchaV1ClientTest {
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
+        .isInstanceOf(FriendlyCaptchaException.class)
+        .hasMessage("Provided secret API key invalid")
+        .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SECRET_INVALID);
+  }
+
+  @Test
+  void validSolutionIsValidAsync() throws Exception {
+
+    stubFor(
+        post("/")
+            .withRequestBody(
+                equalTo("solution=test&secret=" + VALID_API_KEY + "&sitekey=" + SITEKEY))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"success\":true}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey(VALID_API_KEY)
+            .sitekey(SITEKEY)
+            .build();
+
+    assertThat(verifier.verifyAsync("test").get()).isTrue();
+  }
+
+  @Test
+  void failsOnInvalidApiKeyAsync() {
+
+    stubFor(
+        post("/")
+            .willReturn(
+                aResponse()
+                    .withStatus(400)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"success\":false,\"errors\":[\"secret_invalid\"],\"details\":\"Provided secret API key invalid\"}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V1)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey("invalid")
+            .build();
+
+    assertThatThrownBy(() -> verifier.verifyAsync("test").get())
+        .isInstanceOf(ExecutionException.class)
+        .cause()
         .isInstanceOf(FriendlyCaptchaException.class)
         .hasMessage("Provided secret API key invalid")
         .hasFieldOrPropertyWithValue("errorCode", ErrorCode.SECRET_INVALID);

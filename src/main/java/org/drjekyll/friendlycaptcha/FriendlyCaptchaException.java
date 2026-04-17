@@ -12,10 +12,10 @@ import org.jspecify.annotations.Nullable;
  * the solution was rejected (invalid, expired, or already used), while this exception means the
  * verification request itself failed.
  *
- * <p>{@link #getStatusCode()} returns the HTTP status code when the API responded with an error,
- * or {@code null} for non-HTTP failures (network errors, unreadable responses, invalid
- * configuration). {@link #getErrorCode()} returns the machine-readable error code when the API
- * included one in its response body.
+ * <p>{@link #getStatusCode()} returns the HTTP status code when the API responded with an error, or
+ * {@code null} for non-HTTP failures (network errors, unreadable responses, invalid configuration).
+ * {@link #getErrorCode()} returns the machine-readable error code when the API included one in its
+ * response body.
  */
 @Getter
 public class FriendlyCaptchaException extends RuntimeException {

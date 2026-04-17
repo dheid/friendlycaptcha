@@ -11,6 +11,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -147,6 +148,46 @@ public class FriendlyCaptchaVerifier {
     } catch (IOException e) {
       throw new FriendlyCaptchaException("Could not check solution", e);
     }
+  }
+
+  /**
+   * Verifies the given captcha solution against the Friendly Captcha API asynchronously.
+   *
+   * <p>The returned future completes with {@code true} if the solution is valid, or {@code false}
+   * if it was rejected. It completes exceptionally with a {@link
+   * java.util.concurrent.CompletionException} whose cause is always a {@link
+   * FriendlyCaptchaException} — network failures are wrapped in one, consistent with {@link
+   * #verify(String)}.
+   *
+   * @param solution the captcha response value submitted by the user
+   * @return a future that resolves to {@code true} if the solution is accepted, {@code false} if
+   *     rejected
+   * @throws IllegalArgumentException if solution is null or empty
+   */
+  public CompletableFuture<Boolean> verifyAsync(@NonNull String solution) {
+    StringUtil.assertNotEmpty(solution, "Solution must not be null or empty");
+    if (verbose) {
+      log.info("Verifying friendly captcha solution using endpoint {}", effectiveEndpoint);
+    }
+    return httpClient
+        .sendAsync(buildHttpRequest(solution), HttpResponse.BodyHandlers.ofInputStream())
+        .thenApply(
+            response -> {
+              if (verbose) {
+                log.info(
+                    "Received response {} with status code {}", response, response.statusCode());
+              }
+              return friendlyCaptchaClient.processResponse(response.statusCode(), response.body());
+            })
+        .exceptionallyCompose(
+            ex -> {
+              Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+              if (cause instanceof FriendlyCaptchaException fce) {
+                return CompletableFuture.failedFuture(fce);
+              }
+              return CompletableFuture.failedFuture(
+                  new FriendlyCaptchaException("Could not check solution", cause));
+            });
   }
 
   private HttpRequest buildHttpRequest(String solution) {

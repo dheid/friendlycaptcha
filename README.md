@@ -20,20 +20,20 @@ The official [FriendlyCaptcha/friendly-captcha-jvm](https://github.com/FriendlyC
 SDK is the Friendly Captcha team's own library. It even recommends this library for API v1 support.
 Here is how the two compare:
 
-|             Feature              |      **this library**      |        friendly-captcha-jvm        |
-|----------------------------------|----------------------------|------------------------------------|
-| API v1 support                   | Yes                        | No (v2 only)                       |
-| API v2 support                   | Yes                        | Yes                                |
-| Proxy support (host, port, auth) | Yes                        | No                                 |
-| Connect / request timeout        | Yes                        | No                                 |
-| Regional / custom endpoint       | Yes                        | No                                 |
-| Custom `User-Agent`              | Yes                        | No                                 |
-| Verbose SLF4J logging            | Yes                        | No                                 |
-| HTTP client                      | Built-in Java `HttpClient` | Separate HTTP library              |
-| API style                        | Synchronous `boolean`      | Asynchronous (`CompletableFuture`) |
-| Risk intelligence retrieval      | No                         | Yes                                |
-| Minimum Java version             | 17                         | 8                                  |
-| License                          | LGPL                       | MIT                                |
+|             Feature              |              **this library**               |          friendly-captcha-jvm           |
+|----------------------------------|---------------------------------------------|-----------------------------------------|
+| API v1 support                   | Yes                                         | No (v2 only)                            |
+| API v2 support                   | Yes                                         | Yes                                     |
+| Proxy support (host, port, auth) | Yes                                         | No                                      |
+| Connect / request timeout        | Yes                                         | No                                      |
+| Regional / custom endpoint       | Yes                                         | No                                      |
+| Custom `User-Agent`              | Yes                                         | No                                      |
+| Verbose SLF4J logging            | Yes                                         | No                                      |
+| HTTP client                      | Built-in Java `HttpClient`                  | Separate HTTP library                   |
+| API style                        | Synchronous and async (`CompletableFuture`) | Asynchronous only (`CompletableFuture`) |
+| Risk intelligence retrieval      | No                                          | Yes                                     |
+| Minimum Java version             | 17                                          | 8                                       |
+| License                          | LGPL                                        | MIT                                     |
 
 ## :wrench: Usage
 
@@ -204,6 +204,37 @@ class FriendlyCaptchaExample {
 
 `verify` also throws `IllegalArgumentException` if the solution or API key is null or empty.
 
+### Asynchronous verification
+
+`verifyAsync(solution)` returns a `CompletableFuture<Boolean>` and uses the non-blocking
+`HttpClient.sendAsync` under the hood — no thread is blocked while the request is in flight.
+
+```java
+friendlyCaptchaVerifier.verifyAsync(solution)
+    .thenAccept(success -> {
+      if (success) {
+        // continue
+      } else {
+        // solution invalid, expired, or already used — reject the submission
+      }
+    })
+    .exceptionally(ex -> {
+      Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+      if (cause instanceof FriendlyCaptchaException fce && fce.getStatusCode() != null
+          && fce.getStatusCode() == 503) {
+        // API temporarily unavailable — fail open
+      } else {
+        // permanent error — log and handle
+      }
+      return null;
+    });
+```
+
+The future completes exceptionally with a `CompletionException` whose cause is always a
+`FriendlyCaptchaException` — network failures are wrapped in one just like the synchronous
+`verify` method. The same `getStatusCode()` / `getErrorCode()` introspection described below
+applies to the unwrapped cause.
+
 ### Handling FriendlyCaptchaException
 
 `FriendlyCaptchaException` exposes two optional details:
@@ -342,6 +373,7 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
   the `response` body parameter, and parses the v2 response format
 - Fixed sitekey not being URL-encoded in the POST body
 - New `.userAgent(...)` builder parameter to override the default `User-Agent` header
+- Added `verifyAsync(solution)` returning `CompletableFuture<Boolean>` for non-blocking verification
 
 ### 2.0.10 / 2.0.11
 

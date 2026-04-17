@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
@@ -222,6 +223,107 @@ class FriendlyCaptchaV2ClientTest {
         .isInstanceOf(FriendlyCaptchaException.class)
         .hasFieldOrPropertyWithValue("errorCode", ErrorCode.BAD_REQUEST);
     ;
+  }
+
+  @Test
+  void validSolutionIsValidAsync() throws Exception {
+
+    stubFor(
+        post("/")
+            .withHeader("X-API-Key", equalTo(VALID_API_KEY))
+            .withRequestBody(equalTo("response=valid-solution"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"success\":true}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey(VALID_API_KEY)
+            .build();
+
+    assertThat(verifier.verifyAsync("valid-solution").get()).isTrue();
+  }
+
+  @Test
+  void invalidSolutionIsInvalidAsync() throws Exception {
+
+    stubFor(
+        post("/")
+            .withHeader("X-API-Key", equalTo(VALID_API_KEY))
+            .withRequestBody(equalTo("response=invalid-solution"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"success\":false,\"error\":{\"error_code\":\"response_invalid\",\"detail\":\"The response was invalid\"}}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey(VALID_API_KEY)
+            .build();
+
+    assertThat(verifier.verifyAsync("invalid-solution").get()).isFalse();
+  }
+
+  @Test
+  void failsOnInvalidApiKeyAsync() {
+
+    stubFor(
+        post("/")
+            .withHeader("X-API-Key", equalTo("invalid-key"))
+            .willReturn(
+                aResponse()
+                    .withStatus(401)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody(
+                        "{\"success\":false,\"error\":{\"error_code\":\"auth_invalid\",\"detail\":\"[40202]\"}}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey("invalid-key")
+            .build();
+
+    assertThatThrownBy(() -> verifier.verifyAsync("test").get())
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(FriendlyCaptchaException.class)
+        .hasMessage("The provided API key was invalid")
+        .hasFieldOrPropertyWithValue("errorCode", ErrorCode.AUTH_INVALID)
+        .hasFieldOrPropertyWithValue("statusCode", 401);
+  }
+
+  @Test
+  void handles503ResponseAsync() {
+
+    stubFor(
+        post("/")
+            .willReturn(
+                aResponse()
+                    .withStatus(503)
+                    .withHeader("Content-Type", "application/json")
+                    .withBody("{\"success\":false}")));
+
+    verifier =
+        FriendlyCaptchaVerifier.builder()
+            .version(FriendlyCaptchaVersion.V2)
+            .verificationEndpoint(LOCALHOST)
+            .apiKey(VALID_API_KEY)
+            .build();
+
+    assertThatThrownBy(() -> verifier.verifyAsync("test").get())
+        .isInstanceOf(ExecutionException.class)
+        .cause()
+        .isInstanceOf(FriendlyCaptchaException.class)
+        .hasFieldOrPropertyWithValue("statusCode", 503);
   }
 
   private void whenValidatesSolution(String solution) {
