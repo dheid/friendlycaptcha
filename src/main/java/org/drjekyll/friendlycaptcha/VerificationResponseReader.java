@@ -6,14 +6,14 @@ import org.jspecify.annotations.NonNull;
 import tools.jackson.databind.ObjectMapper;
 
 @RequiredArgsConstructor
-public class VerificationResponseReader {
+class VerificationResponseReader {
 
   private final ObjectMapper objectMapper;
 
   /**
    * Reads and deserialises the response body into the given class using the shared ObjectMapper.
    */
-  public <T> T readResponse(@NonNull InputStream inputStream, @NonNull Class<T> responseClass) {
+  <T> T readResponse(@NonNull InputStream inputStream, @NonNull Class<T> responseClass) {
     try {
       return objectMapper.readValue(inputStream, responseClass);
     } catch (Exception e) {

@@ -1,15 +1,14 @@
-package org.drjekyll.friendlycaptcha.v1;
+package org.drjekyll.friendlycaptcha;
 
 import java.util.Collection;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.jackson.Jacksonized;
-import org.drjekyll.friendlycaptcha.ErrorCode;
 
 @Value
 @Builder
 @Jacksonized
-class VerificationResponse {
+class VerificationResponseV1 {
 
   boolean success;
 

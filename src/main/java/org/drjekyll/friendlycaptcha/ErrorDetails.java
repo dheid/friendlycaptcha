@@ -1,6 +1,7 @@
-package org.drjekyll.friendlycaptcha.v2;
+package org.drjekyll.friendlycaptcha;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Value;
 import lombok.extern.jackson.Jacksonized;
@@ -9,9 +10,8 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
-class VerificationResponse {
+class ErrorDetails {
 
-  boolean success;
-
-  ErrorDetails error;
+  @JsonProperty("error_code")
+  ErrorCode errorCode;
 }

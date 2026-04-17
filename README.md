@@ -14,6 +14,27 @@ call and interprets the result.
 - Uses the built-in Java HTTP client — no extra HTTP library dependency
 - Only two runtime dependencies: [Jackson 3](https://github.com/FasterXML/jackson) (`tools.jackson.core:jackson-databind`) and SLF4J
 
+## :vs: Comparison with the official SDK
+
+The official [FriendlyCaptcha/friendly-captcha-jvm](https://github.com/FriendlyCaptcha/friendly-captcha-jvm)
+SDK is the Friendly Captcha team's own library. It even recommends this library for API v1 support.
+Here is how the two compare:
+
+|             Feature              |      **this library**      |        friendly-captcha-jvm        |
+|----------------------------------|----------------------------|------------------------------------|
+| API v1 support                   | Yes                        | No (v2 only)                       |
+| API v2 support                   | Yes                        | Yes                                |
+| Proxy support (host, port, auth) | Yes                        | No                                 |
+| Connect / request timeout        | Yes                        | No                                 |
+| Regional / custom endpoint       | Yes                        | No                                 |
+| Custom `User-Agent`              | Yes                        | No                                 |
+| Verbose SLF4J logging            | Yes                        | No                                 |
+| HTTP client                      | Built-in Java `HttpClient` | Separate HTTP library              |
+| API style                        | Synchronous `boolean`      | Asynchronous (`CompletableFuture`) |
+| Risk intelligence retrieval      | No                         | Yes                                |
+| Minimum Java version             | 17                         | 8                                  |
+| License                          | LGPL                       | MIT                                |
+
 ## :wrench: Usage
 
 Include the dependency using Maven:
@@ -183,6 +204,60 @@ class FriendlyCaptchaExample {
 
 `verify` also throws `IllegalArgumentException` if the solution or API key is null or empty.
 
+### Handling FriendlyCaptchaException
+
+`FriendlyCaptchaException` exposes two optional details:
+
+- `getStatusCode()` — the HTTP status code returned by the API, or `null` for non-HTTP failures
+  (network errors, unreadable responses, invalid configuration).
+- `getErrorCode()` — the machine-readable `ErrorCode` from the response body, or `null` when the
+  API did not include one.
+
+**Retrying on 503 (service unavailable)**
+
+A 503 response means the Friendly Captcha API was temporarily unavailable. In this case it is safe
+to fail open (accept the submission) rather than blocking the user, and schedule a retry later:
+
+```java
+try {
+  boolean success = friendlyCaptchaVerifier.verify(solution);
+  if (!success) {
+    // reject
+  }
+} catch (FriendlyCaptchaException e) {
+  if (e.getStatusCode() != null && e.getStatusCode() == 503) {
+    // API temporarily unavailable — fail open and retry later
+    log.warn("Friendly Captcha API unavailable (503), failing open", e);
+  } else {
+    // Permanent error — check credentials and request format
+    throw e;
+  }
+}
+```
+
+**Evaluating the error code for troubleshooting**
+
+When `getErrorCode()` is non-null you can branch on the specific `ErrorCode` constant for
+fine-grained error handling or logging:
+
+```java
+} catch (FriendlyCaptchaException e) {
+  ErrorCode code = e.getErrorCode();
+  if (code == ErrorCode.AUTH_INVALID || code == ErrorCode.SECRET_INVALID) {
+    log.error("API key is invalid — check your Friendly Captcha account settings");
+  } else if (code == ErrorCode.SITEKEY_INVALID) {
+    log.error("Sitekey mismatch — ensure the widget sitekey matches the verifier");
+  } else if (e.getStatusCode() != null && e.getStatusCode() == 503) {
+    log.warn("Friendly Captcha API temporarily unavailable (503), failing open");
+  } else {
+    log.error("Captcha verification failed: {} (HTTP {})", code, e.getStatusCode(), e);
+  }
+}
+```
+
+The full set of error codes is documented in the `ErrorCode` enum Javadoc and in the
+[Friendly Captcha API reference](https://developer.friendlycaptcha.com/).
+
 ### Regional endpoints (v2)
 
 The v2 API offers regional endpoints. Pass a custom URI via `.verificationEndpoint(...)`:
@@ -225,6 +300,7 @@ migrate alongside this library or continue on the 2.x release line.
 | `.proxyPort(...)`            | Port of an HTTP proxy. `proxyHost` must also be set.                                                                                                                                                                                                              |
 | `.proxyUserName(...)`        | Username for HTTP proxy basic authentication. `proxyHost`, `proxyPort`, and `proxyPassword` must also be set.                                                                                                                                                     |
 | `.proxyPassword(...)`        | Password for HTTP proxy basic authentication. `proxyHost`, `proxyPort`, and `proxyUserName` must also be set.                                                                                                                                                     |
+| `.userAgent(...)`            | Custom `User-Agent` header value sent with every request. Defaults to `FriendlyCaptchaJavaClient`.                                                                                                                                                                |
 | `.verbose(true)`             | Logs endpoint and response details at INFO level via SLF4J.                                                                                                                                                                                                       |
 
 ## :factory_worker: Development
@@ -265,8 +341,7 @@ This project is licensed under the LGPL License - see the [license](LICENSE) fil
 - Added support for Friendly Captcha API v2: sends the API key as the `X-API-Key` header, uses
   the `response` body parameter, and parses the v2 response format
 - Fixed sitekey not being URL-encoded in the POST body
-- Internal refactoring: v1 and v2 implementations moved to `org.drjekyll.friendlycaptcha.v1`
-  and `org.drjekyll.friendlycaptcha.v2` sub-packages
+- New `.userAgent(...)` builder parameter to override the default `User-Agent` header
 
 ### 2.0.10 / 2.0.11
 

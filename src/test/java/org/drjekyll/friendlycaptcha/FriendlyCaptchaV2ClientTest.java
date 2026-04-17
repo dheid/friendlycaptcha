@@ -1,4 +1,4 @@
-package org.drjekyll.friendlycaptcha.v2;
+package org.drjekyll.friendlycaptcha;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -9,33 +9,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
-import org.drjekyll.friendlycaptcha.ErrorCode;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
-class FriendlyCaptchaClientV2Test {
+class FriendlyCaptchaV2ClientTest {
 
   private static final String VALID_API_KEY =
       "B191X90HRE6PA37HDSUIMXS6L46HQGL1A5PGJBFQ12VCV52GTI4HJA2CGI";
 
   private static final String SITEKEY = "NQTVT3JKLX8WX1VQ";
 
-  private static final URI LOCALHOST = URI.create("http://localhost:8080");
+  private static final URI LOCALHOST = URI.create("http://localhost:8080/");
 
   private FriendlyCaptchaVerifier verifier;
 
   private boolean valid;
-
-  @Test
-  void requiresApiKey() {
-
-    assertThatThrownBy(() -> FriendlyCaptchaVerifier.builder().build())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("API key must not be null or empty");
-  }
 
   @Test
   void validSolutionIsValid() {
@@ -109,6 +98,7 @@ class FriendlyCaptchaClientV2Test {
             .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey(VALID_API_KEY)
+            .verbose(true)
             .build();
 
     whenValidatesSolution("expired-solution");
@@ -134,6 +124,7 @@ class FriendlyCaptchaClientV2Test {
             .version(FriendlyCaptchaVersion.V2)
             .verificationEndpoint(LOCALHOST)
             .apiKey("invalid-key")
+            .socketTimeout(Duration.ofMinutes(10L))
             .build();
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))

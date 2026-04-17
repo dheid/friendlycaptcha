@@ -1,4 +1,4 @@
-package org.drjekyll.friendlycaptcha.v2;
+package org.drjekyll.friendlycaptcha;
 
 import static org.drjekyll.friendlycaptcha.StringUtil.isEmpty;
 
@@ -9,13 +9,12 @@ import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.drjekyll.friendlycaptcha.*;
 import org.jspecify.annotations.NonNull;
 
 /** Verifies a Friendly Captcha solution using the v2 API. */
 @RequiredArgsConstructor
 @Slf4j
-public class FriendlyCaptchaClientV2 implements FriendlyCaptchaClient {
+class FriendlyCaptchaV2Client implements FriendlyCaptchaClient {
 
   private static final URI DEFAULT_ENDPOINT =
       URI.create("https://global.frcapi.com/api/v2/captcha/siteverify");
@@ -30,14 +29,14 @@ public class FriendlyCaptchaClientV2 implements FriendlyCaptchaClient {
   }
 
   @Override
-  public byte[] buildRequestBody(@NonNull String solution) {
+  public String buildRequestBody(@NonNull String solution) {
     String entity = "response=" + URLEncoder.encode(solution, StandardCharsets.UTF_8);
     if (!isEmpty(friendlyCaptchaParams.getSitekey())) {
       entity +=
           "&sitekey="
               + URLEncoder.encode(friendlyCaptchaParams.getSitekey(), StandardCharsets.UTF_8);
     }
-    return entity.getBytes(StandardCharsets.UTF_8);
+    return entity;
   }
 
   @Override
@@ -47,21 +46,19 @@ public class FriendlyCaptchaClientV2 implements FriendlyCaptchaClient {
 
   @Override
   public boolean processResponse(int statusCode, InputStream inputStream) {
-    VerificationResponse response =
-        verificationResponseReader.readResponse(inputStream, VerificationResponse.class);
+    VerificationResponseV2 response =
+        verificationResponseReader.readResponse(inputStream, VerificationResponseV2.class);
     if (statusCode == 200) {
       return response.isSuccess();
     }
 
-    log.warn("Received response with error from Verification API: {}", response);
+    log.warn("Received error response: {}", response);
 
     ErrorDetails error = response.getError();
     if (error == null || error.getErrorCode() == null) {
-      throw new FriendlyCaptchaException(
-          "Verification API returned status " + statusCode, statusCode);
-    } else {
-      throw new FriendlyCaptchaException(
-          error.getErrorCode().getDescription(), statusCode, error.getErrorCode());
+      throw new FriendlyCaptchaException("Verification API returned error status", statusCode);
     }
+    throw new FriendlyCaptchaException(
+        error.getErrorCode().getDescription(), statusCode, error.getErrorCode());
   }
 }

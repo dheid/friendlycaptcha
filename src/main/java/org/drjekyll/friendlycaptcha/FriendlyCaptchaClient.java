@@ -4,13 +4,13 @@ import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpRequest;
 
-public interface FriendlyCaptchaClient {
+interface FriendlyCaptchaClient {
 
   /** Returns the default verification endpoint URL for this API version. */
   URI getDefaultEndpoint();
 
   /** Builds the URL-encoded POST body for the given captcha solution. */
-  byte[] buildRequestBody(String solution);
+  String buildRequestBody(String solution);
 
   /** Adds any version-specific request headers to the builder (e.g. {@code X-API-Key} for v2). */
   default void addVersionSpecificHeaders(HttpRequest.Builder requestBuilder) {

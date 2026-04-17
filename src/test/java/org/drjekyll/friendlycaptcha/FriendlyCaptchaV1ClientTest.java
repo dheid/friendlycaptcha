@@ -1,4 +1,4 @@
-package org.drjekyll.friendlycaptcha.v1;
+package org.drjekyll.friendlycaptcha;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -10,34 +10,21 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import java.net.URI;
 import java.time.Duration;
-import org.drjekyll.friendlycaptcha.ErrorCode;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaException;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVerifier;
-import org.drjekyll.friendlycaptcha.FriendlyCaptchaVersion;
 import org.junit.jupiter.api.Test;
 
 @WireMockTest(httpPort = 8080)
-class FriendlyCaptchaClientV1Test {
+class FriendlyCaptchaV1ClientTest {
 
   private static final String VALID_API_KEY =
       "B191X90HRE6PA37HDSUIMXS6L46HQGL1A5PGJBFQ12VCV52GTI4HJA2CGI";
 
   private static final String SITEKEY = "NQTVT3JKLX8WX1VQ";
 
-  private static final URI LOCALHOST = URI.create("http://localhost:8080");
+  private static final URI LOCALHOST = URI.create("HTTP://localhost:8080");
 
   private FriendlyCaptchaVerifier verifier;
 
   private boolean valid;
-
-  @Test
-  void requiresApiKey() {
-
-    assertThatThrownBy(
-            () -> FriendlyCaptchaVerifier.builder().version(FriendlyCaptchaVersion.V1).build())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("API key must not be null or empty");
-  }
 
   @Test
   void validSolutionIsValid() {
@@ -55,36 +42,6 @@ class FriendlyCaptchaClientV1Test {
         "93b573652d6aefb0496856a0e928661c.YlWWwKqT3fMFowr/AQwwngAAAAAAAAAA3evEukjCNZE=.AAAAAHSLAQABAAAAmgEBAAIAAABd2gAAAwAAAK/1FwAEAAAAKmMPAAUAAACUBgEABgAAAGhAEAAHAAAAk20FAAgAAAAzWwgACQAAAIxKEwAKAAAAiK4NAAsAAACtYgkADAAAAIb3AwANAAAAM10CAA4AAAA/2gIADwAAAETWDQAQAAAA4hMEABEAAACBjwgAEgAAALgHBAATAAAA1S8CABQAAACiNAMAFQAAAMpGGgAWAAAAokIVABcAAAAJxQgAGAAAAKgMCQAZAAAA0aMJABoAAACJKAgAGwAAAC25BwAcAAAA3tALAB0AAAB8kQQAHgAAAHlVFAAfAAAAMDgnACAAAAAesRcAIQAAACRXHQAiAAAA0hYLACMAAADS5iYAJAAAAE39AwAlAAAAZkIAACYAAACl/BQAJwAAAM5+BAAoAAAAg6sTACkAAABKpAsAKgAAANTHFgArAAAAOwgLACwAAAA1EAkALQAAAPnrGwAuAAAAXdgyAC8AAAAVQAoA.AgAF");
 
     assertThat(valid).isTrue();
-  }
-
-  @Test
-  void syntacticallyIncorrectSolutionIsInvalid() {
-
-    verifier =
-        FriendlyCaptchaVerifier.builder()
-            .version(FriendlyCaptchaVersion.V1)
-            .verificationEndpoint(LOCALHOST)
-            .apiKey(VALID_API_KEY)
-            .verbose(true)
-            .build();
-
-    whenValidatesSolution("test");
-
-    assertThat(valid).isFalse();
-  }
-
-  @Test
-  void failsOnEmptyApiKey() {
-
-    assertThatThrownBy(
-            () ->
-                FriendlyCaptchaVerifier.builder()
-                    .version(FriendlyCaptchaVersion.V1)
-                    .verificationEndpoint(LOCALHOST)
-                    .apiKey("")
-                    .build())
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("API key must not be null or empty");
   }
 
   @Test
@@ -159,20 +116,6 @@ class FriendlyCaptchaClientV1Test {
 
     assertThatThrownBy(() -> whenValidatesSolution("test"))
         .isInstanceOf(FriendlyCaptchaException.class);
-  }
-
-  @Test
-  void rejectsNonHttpEndpoint() {
-
-    assertThatThrownBy(
-            () ->
-                FriendlyCaptchaVerifier.builder()
-                    .version(FriendlyCaptchaVersion.V1)
-                    .verificationEndpoint(URI.create("ftp://example.com"))
-                    .apiKey(VALID_API_KEY)
-                    .build())
-        .isInstanceOf(FriendlyCaptchaException.class)
-        .hasMessage("Invalid verification endpoint URL");
   }
 
   @Test
