@@ -1,4 +1,4 @@
-# :robot: Friendly Captcha Verification API Client
+# Friendly Captcha Verification API Client
 
 [![Maven Central](https://img.shields.io/maven-central/v/org.drjekyll/friendlycaptcha.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:%22org.drjekyll%22%20AND%20a:%22friendlycaptcha%22)
 [![Java CI with Maven](https://github.com/dheid/friendlycaptcha/actions/workflows/build.yml/badge.svg)](https://github.com/dheid/friendlycaptcha/actions/workflows/build.yml)
@@ -11,10 +11,18 @@ call and interprets the result.
 - Requires Java 17 or later
 - Compatible with JVM-based applications (Java, Groovy, Kotlin, Scala, Clojure)
 - Supports both Friendly Captcha API v1 and v2
+- Synchronous and asynchronous verification
 - Uses the built-in Java HTTP client — no extra HTTP library dependency
-- Only two runtime dependencies: [Jackson 3](https://github.com/FasterXML/jackson) (`tools.jackson.core:jackson-databind`) and SLF4J
+- Only two runtime dependencies:
+  * [Jackson](https://github.com/FasterXML/jackson) for JSON parsing
+  * [SLF4J](https://www.slf4j.org) for logging (if verbose mode is enabled)
 
-## :vs: Comparison with the official SDK
+## API Documentation and Reports
+
+* [Javadoc](https://dheid.github.io/friendlycaptcha/apidocs)
+* [Test Coverage Report](https://dheid.github.io/friendlycaptcha/coverage)
+
+## Comparison with the official SDK
 
 The official [FriendlyCaptcha/friendly-captcha-jvm](https://github.com/FriendlyCaptcha/friendly-captcha-jvm)
 SDK is the Friendly Captcha team's own library. It even recommends this library for API v1 support.
@@ -35,7 +43,7 @@ Here is how the two compare:
 | Minimum Java version             | 17                                          | 8                                       |
 | License                          | LGPL                                        | MIT                                     |
 
-## :wrench: Usage
+## Usage
 
 Include the dependency using Maven:
 
@@ -314,7 +322,7 @@ Version 3.0.0 upgraded the Jackson dependency from Jackson 2 (`com.fasterxml.jac
 Jackson 3 (`tools.jackson.core`). If your project still uses Jackson 2, you will need to either
 migrate alongside this library or continue on the 2.x release line.
 
-## :gear: Verifier Parameters
+## Verifier Parameters
 
 `FriendlyCaptchaVerifier.builder()` supports the following methods:
 
@@ -334,7 +342,7 @@ migrate alongside this library or continue on the 2.x release line.
 | `.userAgent(...)`            | Custom `User-Agent` header value sent with every request. Defaults to `FriendlyCaptchaJavaClient`.                                                                                                                                                                |
 | `.verbose(true)`             | Logs endpoint and response details at INFO level via SLF4J.                                                                                                                                                                                                       |
 
-## :factory_worker: Development
+## Development
 
 To build and locally install the library and run the tests, just call
 
@@ -342,21 +350,21 @@ To build and locally install the library and run the tests, just call
 mvn install
 ```
 
-## :handshake: Contributing
+## Contributing
 
 Please read [the contribution document](CONTRIBUTING.md) for details on our code of conduct, and the
 process for submitting pull requests to us.
 
-## :notebook: Versioning
+## Versioning
 
 We use [SemVer](http://semver.org/) for versioning. For the versions available, see
 the [tags on this repository](https://github.com/dheid/friendlycaptcha/tags).
 
-## :scroll: License
+## License
 
 This project is licensed under the LGPL License - see the [license](LICENSE) file for details.
 
-## :loudspeaker: Release Notes
+## Release Notes
 
 ### 3.0.0
 
